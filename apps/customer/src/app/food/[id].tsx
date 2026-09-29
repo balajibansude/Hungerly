@@ -150,6 +150,7 @@ export default function FoodDetailsScreen() {
               onIncrement={() => setQuantity((q) => Math.min(q + 1, MAX_LINE_QUANTITY))}
               onDecrement={() => setQuantity((q) => Math.max(q - 1, 1))}
               itemName={food.name}
+              min={1}
               max={MAX_LINE_QUANTITY}
             />
             <Button

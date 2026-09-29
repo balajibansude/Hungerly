@@ -79,7 +79,7 @@ export default function ProfileScreen() {
                 <Text variant="body" style={styles.flex}>
                   {item.label}
                 </Text>
-                <Badge label="Soon" tone="neutral" />
+                <Badge label="Soon" tone="neutral" style={styles.badge} />
               </View>
             </View>
           ))}
@@ -105,6 +105,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   flex: { flex: 1 },
   content: { padding: screenGutter, gap: spacing['2xl'] },
+  badge: { alignSelf: 'center' },
   identity: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   row: {
     minHeight: 56,

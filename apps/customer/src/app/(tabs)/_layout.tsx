@@ -1,5 +1,12 @@
-import { colors, Icon, typography, type IconName } from '@hungerly/ui';
+import { colors, Icon, spacing, typography, type IconName } from '@hungerly/ui';
 import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+/**
+ * Content height of the tab bar. React Navigation's default (49) fits its 10pt labels;
+ * our caption style (12/16) needs more room or the labels are clipped.
+ */
+const TAB_BAR_HEIGHT = 60;
 
 function tabIcon(active: IconName, inactive: IconName) {
   return function TabIcon({ focused }: { focused: boolean }) {
@@ -18,6 +25,7 @@ function tabIcon(active: IconName, inactive: IconName) {
  * floating bar that appears when it has items, so it never competes for attention empty.
  */
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
   return (
     <Tabs
       screenOptions={{
@@ -27,8 +35,14 @@ export default function TabsLayout() {
         tabBarLabelStyle: {
           fontFamily: typography.caption.fontFamily,
           fontSize: typography.caption.fontSize,
+          lineHeight: typography.caption.lineHeight,
         },
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
+        tabBarStyle: {
+          height: TAB_BAR_HEIGHT + insets.bottom,
+          paddingTop: spacing.xs,
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+        },
         sceneStyle: { backgroundColor: colors.background },
       }}
     >

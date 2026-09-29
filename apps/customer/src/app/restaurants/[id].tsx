@@ -15,6 +15,7 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
 import { ScrollView, SectionList, StyleSheet, View } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CART_BAR_SPACE, CartBar } from '@/features/cart/components/CartBar';
@@ -34,6 +35,9 @@ export default function RestaurantDetailsScreen() {
   const listRef = useRef<SectionList<Food, MenuCategory>>(null);
   const pendingJump = useRef<{ sectionIndex: number; retries: number } | null>(null);
   const [vegOnly, setVegOnly] = useState(false);
+  // Once the hero scrolls away, a solid top bar replaces the floating back button so it
+  // never sits on top of menu text.
+  const [collapsed, setCollapsed] = useState(false);
 
   const jumpTo = (sectionIndex: number, retries = 0) => {
     pendingJump.current = { sectionIndex, retries };
@@ -88,7 +92,7 @@ export default function RestaurantDetailsScreen() {
 
   if (data.status === 'error') {
     return (
-      <View style={[styles.screen, { paddingTop: insets.top + 64 }]}>
+      <View style={[styles.screen, { paddingTop: insets.top + spacing['5xl'] + spacing.sm }]}>
         <ErrorState message="We couldn't load this restaurant." onRetry={data.refetch} />
         {back}
       </View>
@@ -105,6 +109,11 @@ export default function RestaurantDetailsScreen() {
         sections={sections}
         keyExtractor={(food) => food.id}
         stickySectionHeadersEnabled={false}
+        scrollEventThrottle={16}
+        onScroll={(event) => {
+          const next = event.nativeEvent.contentOffset.y > HERO_HEIGHT - spacing['3xl'];
+          if (next !== collapsed) setCollapsed(next);
+        }}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <View>
@@ -183,7 +192,32 @@ export default function RestaurantDetailsScreen() {
           }
         }}
       />
-      {back}
+      <View
+        style={[
+          styles.topBar,
+          { paddingTop: insets.top + spacing.xs },
+          collapsed && styles.topBarSolid,
+        ]}
+        pointerEvents="box-none"
+      >
+        <IconButton
+          icon="chevron-back"
+          variant={collapsed ? 'ghost' : 'overlay'}
+          accessibilityLabel="Go back"
+          onPress={() => router.back()}
+        />
+        {collapsed && (
+          <Animated.View
+            entering={FadeIn.duration(150)}
+            exiting={FadeOut.duration(100)}
+            style={styles.flex}
+          >
+            <Text variant="h3" numberOfLines={1}>
+              {restaurant.name}
+            </Text>
+          </Animated.View>
+        )}
+      </View>
       <CartBar />
       {dialog}
     </View>
@@ -193,6 +227,23 @@ export default function RestaurantDetailsScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   back: { position: 'absolute', left: screenGutter },
+  flex: { flex: 1 },
+  topBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: screenGutter - spacing.xs,
+    paddingBottom: spacing.sm,
+  },
+  topBarSolid: {
+    backgroundColor: colors.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
   loadingBody: { padding: screenGutter, gap: spacing.md },
   listContent: { paddingBottom: CART_BAR_SPACE },
   infoWrap: { paddingHorizontal: screenGutter, marginTop: -spacing['3xl'] },

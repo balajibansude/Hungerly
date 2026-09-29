@@ -1,5 +1,6 @@
-import { forwardRef, useState, type ReactNode } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useState, type ReactNode } from 'react';
 import {
+  Pressable,
   StyleSheet,
   TextInput,
   View,
@@ -41,17 +42,26 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
   ref,
 ) {
   const [focused, setFocused] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+  useImperativeHandle(ref, () => inputRef.current as TextInput, []);
   const hasError = Boolean(errorText);
   const borderColor = hasError ? colors.error : focused ? colors.focus : colors.border;
+  // The label and the whole field box focus the input: a larger, more forgiving target.
+  const focusInput = () => inputRef.current?.focus();
 
   return (
     <View style={[styles.container, containerStyle]}>
       {!hideLabel && (
-        <Text variant="label" color="textSecondary">
-          {label}
-        </Text>
+        <Pressable onPress={focusInput} accessible={false}>
+          <Text variant="label" color="textSecondary">
+            {label}
+          </Text>
+        </Pressable>
       )}
-      <View
+      <Pressable
+        onPress={focusInput}
+        accessible={false}
+        disabled={!editable}
         style={[
           styles.field,
           { borderColor },
@@ -61,7 +71,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
       >
         {leading}
         <TextInput
-          ref={ref}
+          ref={inputRef}
           {...inputProps}
           editable={editable}
           accessibilityLabel={label}
@@ -80,7 +90,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
           style={styles.input}
         />
         {trailing}
-      </View>
+      </Pressable>
       {hasError ? (
         <Text variant="bodySmall" color="error" accessibilityLiveRegion="polite">
           {errorText}

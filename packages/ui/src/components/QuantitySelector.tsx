@@ -12,6 +12,11 @@ export interface QuantitySelectorProps {
   onDecrement: () => void;
   /** Label of the item, used to build accessible labels ("Add Paneer Tikka"). */
   itemName: string;
+  /**
+   * Lowest allowed quantity. 0 (default): decrementing from 1 removes the item, shown
+   * with a bin icon. 1: used where an item cannot be removed (e.g. the dish sheet).
+   */
+  min?: number;
   max?: number;
   size?: 'sm' | 'md';
   /** Shown when quantity is 0. */
@@ -27,6 +32,7 @@ export function QuantitySelector({
   onIncrement,
   onDecrement,
   itemName,
+  min = 0,
   max = 20,
   size = 'md',
   addLabel = 'Add',
@@ -51,27 +57,31 @@ export function QuantitySelector({
   }
 
   const atMax = quantity >= max;
+  const atMin = quantity <= min;
+  const removes = min === 0 && quantity === 1;
   return (
     <Animated.View
       layout={LinearTransition.duration(motion.duration.fast)}
       style={[styles.stepper, { height }]}
       accessibilityRole="adjustable"
       accessibilityLabel={`${itemName} quantity`}
-      accessibilityValue={{ now: quantity, min: 0, max }}
+      accessibilityValue={{ now: quantity, min, max }}
       accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
       onAccessibilityAction={(event) => {
         if (event.nativeEvent.actionName === 'increment' && !atMax) onIncrement();
-        if (event.nativeEvent.actionName === 'decrement') onDecrement();
+        if (event.nativeEvent.actionName === 'decrement' && !atMin) onDecrement();
       }}
     >
       <Pressable
         onPress={onDecrement}
+        disabled={atMin}
         hitSlop={hitSlop}
         accessibilityRole="button"
-        accessibilityLabel={quantity === 1 ? `Remove ${itemName}` : `Decrease ${itemName}`}
-        style={styles.step}
+        accessibilityLabel={removes ? `Remove ${itemName}` : `Decrease ${itemName}`}
+        accessibilityState={{ disabled: atMin }}
+        style={[styles.step, atMin && styles.disabledStep]}
       >
-        <Icon name={quantity === 1 ? 'trash-outline' : 'remove'} size="sm" color="onPrimary" />
+        <Icon name={removes ? 'trash-outline' : 'remove'} size="sm" color="onPrimary" />
       </Pressable>
       <View style={styles.countBox}>
         <Animated.View
