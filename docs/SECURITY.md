@@ -194,7 +194,7 @@ Principle of least privilege: admins receive the narrowest sub-role; role change
 - **Containers:** minimal base images (slim/distroless), non-root user, read-only filesystem where possible, image vulnerability scanning in CI, pinned base image digests, regular rebuilds for patches.
 - **Dependencies:** lockfiles committed (`uv.lock`, `pubspec.lock`, `pnpm-lock.yaml`); Dependabot/Renovate updates; dependency review on PRs; licences checked.
 - **CI/CD:** GitHub Actions with least-privilege tokens (`permissions:` set per workflow), pinned third-party actions by commit SHA, OIDC to cloud instead of long-lived keys where supported, protected environments with required reviewers for production.
-- **Repository:** branch protection on `main`, `malik`, `teammate` (no force push, no deletion); required reviews and status checks for `main`; signed commits recommended.
+- **Repository:** branch protection on `main`, `balaji`, `teammate` (no force push, no deletion); required reviews and status checks for `main`; signed commits recommended.
 - **Data at rest:** managed DB and storage encryption enabled; backups encrypted; backup access restricted.
 - **Monitoring:** alerts on auth anomalies, 5xx spikes, webhook signature failures, privilege changes.
 - **Incident response:** runbook with severity levels, contact list, containment steps (revoke keys, revoke sessions, disable features via flags), customer communication and post-mortem; breach notification obligations per applicable law.

@@ -930,7 +930,7 @@ Coverage targets: backend domain services ≥ 80% lines; payments, orders and au
 | `security` | all PRs + weekly | gitleaks, dependency review, CodeQL |
 | `docs` | `docs/**` | markdown lint, link check |
 
-**Branch protection:** `main`, `malik`, `teammate` protected — no force pushes, no deletion; PRs required into `main` with passing checks and ≥ 1 approval (the other developer); linear history via squash merge.
+**Branch protection:** `main`, `balaji`, `teammate` protected — no force pushes, no deletion; PRs required into `main` with passing checks and ≥ 1 approval (the other developer); linear history via squash merge.
 
 **CD:**
 - Merge to `main` → build and push image (tagged with commit SHA) → run migrations (separate job) → deploy to **staging** automatically → smoke tests.
@@ -1125,7 +1125,7 @@ These require product/business input or later evidence. Each needs an owner and 
 | OD-17 | Restaurant web portal in addition to app | Flutter web build / separate web / none | None for MVP | Post-MVP |
 | OD-18 | Languages at launch | English only / + regional | English only | Phase 4 |
 | OD-19 | Minimum OS versions | — | Follow current Flutter stable minimums; confirm with target device data | Phase 1 |
-| OD-20 | Branch model: where integration testing happens (`malik`/`teammate` → `main` directly, or an integration branch) | — | Feature → personal branch → PR to `main`; `main` deploys to staging, tags deploy to production | Phase 1 |
+| OD-20 | Branch model: where integration testing happens (`balaji`/`teammate` → `main` directly, or an integration branch) | — | Feature → personal branch → PR to `main`; `main` deploys to staging, tags deploy to production | Phase 1 |
 | OD-21 | Pre-launch external penetration test | — | Recommended before public launch; budget-dependent | Phase 11 |
 | OD-22 | Search engine migration trigger | Postgres FTS → Meilisearch/OpenSearch | Stay on Postgres until metrics say otherwise | Post-MVP |
 | OD-23 | Deep-link scheme / app-links domain, app names and bundle ids | — | Decide with branding | Phase 1 |
@@ -1219,7 +1219,7 @@ For each major decision: recommendation, need, alternatives, rationale, cost and
 
 1. **Market:** India first; currency INR; phone numbers +91; payment methods UPI/cards/netbanking/wallets; English UI at launch.
 2. **Scale:** one pilot city, tens to low hundreds of restaurants, up to ~2,000 orders/day in the first months.
-3. **Team:** two developers (repository branches `malik` and `teammate`), part-time ops support; no dedicated DevOps/SRE.
+3. **Team:** two developers (repository branches `balaji` and `teammate`), part-time ops support; no dedicated DevOps/SRE.
 4. **Business model:** commission on restaurant orders + delivery fee + optional platform fee; exact values configurable, not hard-coded.
 5. **Fulfilment:** Hungerly-managed delivery fleet of independent partners; restaurant self-delivery is not supported in MVP.
 6. **Single-restaurant orders:** one order = one restaurant = one delivery partner.

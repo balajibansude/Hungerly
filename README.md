@@ -74,13 +74,13 @@ README.md  .gitignore  .editorconfig
 | Branch | Purpose | Rules |
 |---|---|---|
 | `main` | Stable, production-ready code | Protected. Changes only via pull request with passing CI and one approval. Never developed on directly. |
-| `malik` | Malik's development branch | Integration branch for Malik's feature branches. PR into `main`. |
+| `balaji` | Balaji's development branch | Integration branch for Balaji's feature branches. PR into `main`. |
 | `teammate` | Teammate's development branch | Integration branch for the teammate's feature branches. PR into `main`. |
-| `feature/<phase>-<name>`, `docs/<name>`, `fix/<name>` | Short-lived work branches | Created from `malik` or `teammate`; merged back via PR. |
+| `feature/<phase>-<name>`, `docs/<name>`, `fix/<name>` | Short-lived work branches | Created from `balaji` or `teammate`; merged back via PR. |
 
 Rules:
 - Never commit directly to `main`.
-- **No force pushes** and no rewriting of shared history on `main`, `malik` or `teammate`.
+- **No force pushes** and no rewriting of shared history on `main`, `balaji` or `teammate`.
 - Keep your developer branch up to date by merging `main` into it (not rebasing shared branches).
 - Never commit secrets, `.env` files or credentials. Only `.env.example` templates are committed.
 
@@ -127,7 +127,7 @@ Each area will also document its own commands (`backend/README.md`, `apps/*/READ
 ## Contribution workflow
 
 1. Pick a task from the current phase in the [roadmap](docs/DEVELOPMENT_ROADMAP.md).
-2. Update your developer branch: `git switch malik && git pull` (or `teammate`), then merge the latest `main` if needed.
+2. Update your developer branch: `git switch balaji && git pull` (or `teammate`), then merge the latest `main` if needed.
 3. Create a work branch: `git switch -c feature/p2-otp-login`.
 4. Make small, focused commits with clear messages (e.g. `feat(auth): add OTP verification endpoint`).
 5. Run tests and linters locally.

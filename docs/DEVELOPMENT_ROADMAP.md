@@ -8,7 +8,7 @@ Related: [BLUEPRINT.md](BLUEPRINT.md) §59–§61 · [FRONTEND_BLUEPRINT.md](FRO
 
 - **Vertical slices:** from Phase 2 onward, each phase delivers backend + the client screens that use it, so every phase ends with something demonstrable on real devices against a real backend. No throwaway mock backends.
 - **Contract first inside a phase:** endpoint schemas are defined (Pydantic → OpenAPI) at the start of a slice; the Dart/TS clients are generated so backend and frontend can proceed in parallel, with the frontend using test fixtures from the generated models until the endpoint is live on staging.
-- **Branches:** each task is a feature branch (`feature/<phase>-<short-name>`) from the developer's branch (`malik` or `teammate`), merged back by PR; the developer branch is PR'd into `main` when a coherent set of work is complete and CI is green.
+- **Branches:** each task is a feature branch (`feature/<phase>-<short-name>`) from the developer's branch (`balaji` or `teammate`), merged back by PR; the developer branch is PR'd into `main` when a coherent set of work is complete and CI is green.
 - **Suggested split:** one developer leans backend + admin, the other leans Flutter apps; both review each other's PRs. Adjust per phase.
 - **Definition of Done:** BLUEPRINT §61 applies to every task.
 
@@ -39,7 +39,7 @@ Note on the requested order: the original outline placed "Customer application" 
 **Objectives:** agree on product scope, architecture and conventions before writing code.
 
 **Tasks**
-- Clean repository, initialise Git with `main`, `malik`, `teammate`, `docs/blueprint` branches.
+- Clean repository, initialise Git with `main`, `balaji`, `teammate`, `docs/blueprint` branches.
 - Write BLUEPRINT, DATABASE_SCHEMA, API_BLUEPRINT, FRONTEND_BLUEPRINT, DEVELOPMENT_ROADMAP, SECURITY, ADRs, README.
 - Review with both developers; assign owners and dates for open decisions (BLUEPRINT §63).
 
@@ -48,7 +48,7 @@ Note on the requested order: the original outline placed "Customer application" 
 **Acceptance criteria**
 - All documents reviewed; comments resolved or recorded as open decisions.
 - Blueprint approved by the project owner.
-- `docs/blueprint` merged via PR into `malik` and then into `main`.
+- `docs/blueprint` merged via PR into `balaji` and then into `main`.
 
 ---
 
@@ -307,4 +307,4 @@ Testing is continuous in every phase; this phase closes the gaps before launch.
 
 ## Immediate next step
 
-**Phase 0 review.** After approval: merge `docs/blueprint` → `malik` → `main` by PR, resolve Phase 1 blocking decisions (OD-01, OD-19, OD-20, OD-23), then start **Phase 1 — Project foundation**, which includes the Flutter app shells and design system that frontend development builds on.
+**Phase 0 review.** After approval: merge `docs/blueprint` → `balaji` → `main` by PR, resolve Phase 1 blocking decisions (OD-01, OD-19, OD-20, OD-23), then start **Phase 1 — Project foundation**, which includes the Flutter app shells and design system that frontend development builds on.
