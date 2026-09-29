@@ -1,6 +1,6 @@
 # ADR-007: REST + generated OpenAPI contract with client codegen
 
-- Status: Proposed
+- Status: Proposed — amended by [ADR-011](ADR-011-react-native-expo.md): only a TypeScript client is generated
 - Date: 2026-09-29
 
 ## Context

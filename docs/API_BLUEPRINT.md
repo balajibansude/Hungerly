@@ -25,7 +25,7 @@ Related: [BLUEPRINT.md](BLUEPRINT.md) · [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md
    | `/ws/v1` | all mobile apps + admin | token (WebSocket) |
    | `/health/live`, `/health/ready` | load balancer/monitoring | public, no data |
 
-4. **Contract-first where it matters.** Pydantic request/response models are the single definition; the OpenAPI spec is generated from them and typed clients are generated from the spec (Dart for Flutter apps, TypeScript for admin). CI fails if the committed spec drifts from the code.
+4. **Contract-first where it matters.** Pydantic request/response models are the single definition; the OpenAPI spec is generated from them and a typed TypeScript client (`@hungerly/api-client`) is generated from the spec for all apps. CI fails if the committed spec drifts from the code.
 5. **The server is the source of truth for money, availability and state transitions.** Clients send intent (item ids, quantities, option ids); the server computes prices, fees, discounts and totals.
 
 ---

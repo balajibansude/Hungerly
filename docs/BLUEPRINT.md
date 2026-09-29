@@ -1,6 +1,6 @@
 # Hungerly — Architecture Blueprint
 
-> **Status:** Draft v0.1 for review (Phase 0 — Architecture). **Owner:** Hungerly core team. **Last updated:** 2026-09-29.
+> **Status:** Draft v0.2 (Phase 0 — Architecture; mobile stack updated by ADR-011/ADR-012). **Owner:** Hungerly core team. **Last updated:** 2026-09-29.
 >
 > This document is the architectural source of truth. Detailed companions:
 > [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) · [API_BLUEPRINT.md](API_BLUEPRINT.md) · [FRONTEND_BLUEPRINT.md](FRONTEND_BLUEPRINT.md) · [DEVELOPMENT_ROADMAP.md](DEVELOPMENT_ROADMAP.md) · [SECURITY.md](SECURITY.md) · [decisions/](decisions/)
@@ -21,9 +21,9 @@ The system consists of:
 
 | Component | Technology (recommended) | Purpose |
 |---|---|---|
-| Customer app | Flutter (Android, iOS) | Discover restaurants, order, pay, track |
-| Restaurant partner app | Flutter (Android/iOS phones and tablets) | Receive and manage orders, manage menu and hours |
-| Delivery partner app | Flutter (Android first, iOS) | Accept and complete deliveries, share live location |
+| Customer app | React Native + Expo (Android, iOS) | Discover restaurants, order, pay, track |
+| Restaurant partner app | React Native + Expo (Android/iOS phones and tablets) | Receive and manage orders, manage menu and hours |
+| Delivery partner app | React Native + Expo (Android first, iOS) | Accept and complete deliveries, share live location |
 | Admin dashboard | React + TypeScript (Vite SPA) | Operations, onboarding, support, finance, analytics |
 | Backend API + workers | Python 3.13, FastAPI, SQLAlchemy 2, ARQ | Business logic, APIs, realtime, background jobs |
 | Database | PostgreSQL 16+ with PostGIS | System of record |
@@ -48,7 +48,7 @@ Development is done by a **small team (two developers initially)**, so the archi
 3. **Low operating cost** at pilot scale (target: under ~USD 150/month infrastructure for production at pilot volume, excluding SMS/maps/payment fees).
 4. **Scale path** to multiple cities and ~10× pilot volume without rewriting core components.
 5. **Security and privacy by default**: least-privilege access, protected PII, compliance-ready payments (no card data touches Hungerly systems).
-6. **Maintainability** by a small team: one backend language, one mobile framework, generated API clients, strong typing, automated tests and CI.
+6. **Maintainability** by a small team: TypeScript across all clients, one backend language, a generated API client, strong typing, automated tests and CI.
 
 ## 4. User types
 
@@ -270,10 +270,10 @@ IDs are referenced by tests and PRs.
 | Consistency | Orders, payments, assignments: strong consistency (single PostgreSQL primary, transactions, constraints). Listings, ratings, analytics: eventual consistency acceptable |
 | Security | OWASP ASVS L2 as the target baseline; OWASP API Top 10 addressed; see SECURITY.md |
 | Privacy | Data minimisation, masked contact details, retention limits, account deletion; alignment with India's DPDP Act 2023 (legal review pending) |
-| Maintainability | Typed code (mypy strict on backend core, Dart analyzer strict, TS strict); ≥ 80% line coverage on backend domain services; generated API clients |
+| Maintainability | Typed code (mypy strict on backend core, TypeScript strict in all clients and packages); ≥ 80% line coverage on backend domain services; generated API clients |
 | Portability | Everything runs in containers; no proprietary cloud APIs in core logic (storage and email behind interfaces) |
 | Observability | Every request traceable by `request_id` across logs, errors and audit entries |
-| Mobile | Cold start < 3 s on mid-range Android; works on Android 8+ and iOS 15+ (to be confirmed with Flutter's minimums); APK size target < 30 MB |
+| Mobile | Cold start < 3 s on mid-range Android; works on Android 8+ and iOS 15+ (to be confirmed against the Expo SDK / React Native minimums); APK size target < 30 MB |
 | Accessibility | WCAG 2.1 AA for admin; platform accessibility guidelines for mobile |
 | Cost | See §55 |
 
@@ -282,9 +282,9 @@ IDs are referenced by tests and PRs.
 ```mermaid
 flowchart LR
     subgraph Clients
-        C[Customer app<br/>Flutter]
-        R[Restaurant app<br/>Flutter]
-        D[Delivery app<br/>Flutter]
+        C[Customer app<br/>React Native/Expo]
+        R[Restaurant app<br/>React Native/Expo]
+        D[Delivery app<br/>React Native/Expo]
         A[Admin SPA<br/>React]
     end
 
@@ -337,9 +337,9 @@ flowchart LR
 
 | Layer | Responsibility | Where |
 |---|---|---|
-| Presentation | Screens, navigation, UI state | Flutter apps, admin SPA |
-| Client application logic | Session, caching of server state, form validation (UX only) | Riverpod / TanStack Query |
-| API contract | OpenAPI spec generated from backend schemas; generated Dart and TS clients | `backend` → `contracts/` → `packages/hungerly_api`, `packages/api-client-ts` |
+| Presentation | Screens, navigation, UI state | Expo apps, admin SPA |
+| Client application logic | Session, server-state caching, form validation (UX only), service interfaces | Query hook (TanStack Query later), Zustand for shared client state |
+| API contract | OpenAPI spec generated from backend schemas; one generated TypeScript client | `backend` → `contracts/` → `packages/api-client` |
 | API layer | HTTP routing, auth dependencies, request/response schemas, error mapping | `backend/app/modules/*/router.py` |
 | Domain services | Business rules, state machines, authorization policies, transactions | `backend/app/modules/*/service.py`, `policies.py` |
 | Data access | SQLAlchemy models and repositories | `backend/app/modules/*/models.py`, `repository.py` |
@@ -405,8 +405,10 @@ backend/tests/               # unit/, integration/, api/, contract/
 ## 17. Frontend architecture
 
 Summary (details in [FRONTEND_BLUEPRINT.md](FRONTEND_BLUEPRINT.md)):
-- **Three Flutter apps** sharing three Dart packages: `hungerly_api` (generated client), `hungerly_core` (networking, auth, config, errors, realtime, push), `hungerly_ui` (design system).
-- Feature-first folder structure; Riverpod for state/DI; go_router for navigation and deep links; Dio for HTTP.
+- **Three React Native + Expo apps** (ADR-011) sharing TypeScript packages: `@hungerly/ui` (design system), `@hungerly/types`, `@hungerly/utils`, `@hungerly/config`, and later `@hungerly/api-client` (generated from OpenAPI).
+- Expo Router (file-based, typed routes) for navigation and deep links; feature-first folders; UI talks to data only through **service interfaces**, implemented today by in-memory mocks and later by the API client.
+- Local state first; Zustand for shared client state (cart, session); server state through a small key-based query hook, replaceable by TanStack Query.
+- Styling with typed design tokens + `StyleSheet`; Reanimated for purposeful animation; expo-image for cached images.
 - **Admin**: React + TypeScript SPA built with Vite, TanStack Query/Table, React Router, React Hook Form + Zod, Tailwind + shadcn/ui, generated TS client.
 - Build flavours `dev` / `staging` / `prod`; configuration via build-time defines; **no secrets in any client**.
 
@@ -424,7 +426,7 @@ Summary (details in [FRONTEND_BLUEPRINT.md](FRONTEND_BLUEPRINT.md)):
 
 | Actor | Method | Token delivery |
 |---|---|---|
-| Customer, delivery partner, restaurant staff | Phone + SMS OTP | Mobile: access token in memory, refresh token in platform secure storage (Keychain / Android Keystore via `flutter_secure_storage`) |
+| Customer, delivery partner, restaurant staff | Phone + SMS OTP | Mobile: access token in memory, refresh token in platform secure storage (Keychain / Android Keystore via `expo-secure-store`) |
 | Admin | Email + password (Argon2id) + TOTP (mandatory) | Access token in memory; refresh token in `HttpOnly; Secure; SameSite=Strict` cookie + CSRF header |
 
 - **Access token:** JWT signed with **EdDSA (Ed25519)** or ES256 (asymmetric, so verification keys can be shared without signing ability), 15-minute lifetime, claims: `sub` (user id), `sid` (session id), `roles`, `app` (client app), `iat`, `exp`, `jti`, `kid`. No PII in tokens.
@@ -467,7 +469,7 @@ Implementation: permissions are declared as named policies (e.g. `can_refund(act
 ## 21. API architecture
 
 - **REST + JSON over HTTPS**, versioned (`/api/v1`), separated by actor surface (`/customer`, `/catalog`, `/partner`, `/delivery`, `/admin`, `/webhooks`). See [API_BLUEPRINT.md](API_BLUEPRINT.md) and [ADR-007](decisions/ADR-007-api-contract.md).
-- **Contract:** OpenAPI generated from Pydantic schemas, committed to `contracts/openapi.json`; CI checks drift; Dart and TypeScript clients generated from it.
+- **Contract:** OpenAPI generated from Pydantic schemas, committed to `contracts/openapi.json`; CI checks drift; a TypeScript client is generated from it.
 - **Errors:** RFC 9457 Problem Details with stable `code`s.
 - **Pagination:** cursor-based.
 - **Concurrency:** `Idempotency-Key` for money/order commands; `If-Match` versions for state transitions.
@@ -476,7 +478,7 @@ Implementation: permissions are declared as named policies (e.g. `can_refund(act
 
 ## 22. Payment architecture
 
-**Provider: Razorpay** (recommended for India: UPI, cards, netbanking, wallets; well-supported Flutter SDK; Route for marketplace splits later). See [ADR-009](decisions/ADR-009-payments.md). Integration is behind a `PaymentGateway` interface so a second provider (e.g. Cashfree, PayU) can be added.
+**Provider: Razorpay** (recommended for India: UPI, cards, netbanking, wallets; React Native SDK (via an Expo config plugin in a development build); Route for marketplace splits later). See [ADR-009](decisions/ADR-009-payments.md). Integration is behind a `PaymentGateway` interface so a second provider (e.g. Cashfree, PayU) can be added.
 
 ```mermaid
 sequenceDiagram
@@ -667,9 +669,9 @@ Authentication · Customer (profile, addresses, favourites) · Catalog (restaura
 
 | App | Tech | Primary device | Key constraints |
 |---|---|---|---|
-| Customer | Flutter | Android + iOS phones | Performance on low/mid-range Android, payments SDK, maps, deep links |
-| Restaurant | Flutter | Android tablet at counter; owner's phone | Never miss an order: loud alerts, keep-awake option, reconnect logic |
-| Delivery | Flutter | Android phones | Background location with foreground service, battery, outdoor readability, poor connectivity |
+| Customer | React Native + Expo | Android + iOS phones | Performance on low/mid-range Android, payments SDK, maps, deep links |
+| Restaurant | React Native + Expo | Android tablet at counter; owner's phone | Never miss an order: loud alerts, keep-awake option, reconnect logic |
+| Delivery | React Native + Expo | Android phones | Background location with foreground service, battery, outdoor readability, poor connectivity |
 | Admin | React + Vite SPA | Desktop browser | Dense tables, maps (zones), role-based screens, strong security (MFA, CSP) |
 
 Screens: [FRONTEND_BLUEPRINT.md](FRONTEND_BLUEPRINT.md).
@@ -678,34 +680,34 @@ Screens: [FRONTEND_BLUEPRINT.md](FRONTEND_BLUEPRINT.md).
 
 | Package | Language | Consumers | Contents |
 |---|---|---|---|
-| `packages/hungerly_api` | Dart (generated) | 3 Flutter apps | API client + models from `contracts/openapi.json` |
-| `packages/hungerly_core` | Dart | 3 Flutter apps | HTTP/auth/session, config, errors, realtime, push, logging, formatting |
-| `packages/hungerly_ui` | Dart | 3 Flutter apps | Design tokens, theme, shared widgets, status vocabulary |
-| `packages/api-client-ts` | TypeScript (generated) | Admin | Types + fetch client from the same OpenAPI |
+| `packages/ui` (`@hungerly/ui`) | TypeScript / React Native | 3 mobile apps | Design tokens (colour, type, spacing, radius, elevation, motion) and accessible components |
+| `packages/types` (`@hungerly/types`) | TypeScript | all clients | Domain types used by UI and services (camelCase, money in minor units) |
+| `packages/utils` (`@hungerly/utils`) | TypeScript | all clients | Money arithmetic/formatting, display formatters, phone helpers — framework-free |
+| `packages/config` (`@hungerly/config`) | TS/ESLint config | all TS packages | `tsconfig.base.json`, shared ESLint flat config |
+| `packages/api-client` (`@hungerly/api-client`) — *later* | TypeScript (generated) | all clients | Client generated from `contracts/openapi.json`; implements the apps' service interfaces |
+| `packages/validation` — *later, only if needed* | TypeScript | clients | Shared form schemas once real forms beyond login exist |
 | `contracts/` | JSON/YAML | all | `openapi.json` (generated, committed), shared event schemas (WebSocket/push payloads) |
-| Config | per toolchain | — | `analysis_options.yaml` (Dart), `tsconfig.base.json`, ESLint config, Ruff/mypy in `backend/pyproject.toml` |
 
-**Why not a single cross-language "shared/types" package:** the Dart and TypeScript clients cannot share source; the **OpenAPI contract is the shared types layer**, and generated code prevents drift. A generic `utilities` package is intentionally not created up front — shared code is extracted into `hungerly_core` only when used by at least two apps (avoid speculative abstractions).
+Packages are created only when there is real shared code (no speculative abstractions). `@hungerly/types` is the hand-written client domain model; when the API client is generated, it maps wire DTOs (snake_case) into these types so screens never depend on wire formats.
 
 ## 36. Monorepo architecture
 
 One Git repository containing all apps, the backend, shared packages, contracts, infrastructure and docs. See [ADR-001](decisions/ADR-001-monorepo.md).
 
-**Tooling (polyglot, minimal):**
-- **Dart:** Dart **pub workspaces** (root `pubspec.yaml` listing apps and packages) for a single resolution; **Melos** for multi-package scripts (analyze/test/codegen across packages).
-- **Python:** `uv` project in `backend/` (lockfile `uv.lock`).
-- **TypeScript:** `pnpm` workspace containing only `apps/admin` and `packages/api-client-ts`.
-- **Task entry point:** a root `Makefile` with a small set of targets (`make setup`, `make dev`, `make test`, `make lint`, `make codegen`) that delegate to each toolchain — so contributors learn one interface.
-- **No Turborepo/Nx:** with only one JS app, their caching benefits are small and they do not orchestrate Dart/Python well; CI uses **path filters** to run only affected pipelines. Re-evaluate if JS apps multiply.
+**Tooling** (ADR-012):
+- **TypeScript:** **pnpm workspaces** (`apps/*`, `packages/*`) + **Turborepo** for `lint`, `typecheck`, `test` across apps and packages; `nodeLinker: hoisted` so Metro sees one copy of `react`/`react-native`. Shared packages are TypeScript source packages (no build step).
+- **Python:** `uv` project in `backend/` (lockfile `uv.lock`), outside the pnpm workspace.
+- **Entry points:** root scripts `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm format`, `pnpm dev:customer`; backend commands are documented in `backend/README.md` when it exists.
+- CI uses **path filters** plus Turborepo filters to run only affected pipelines.
 
 ## 37. Recommended folder structure
 
 ```
 Hungerly/
 ├── apps/
-│   ├── customer/            # Flutter — customer app
-│   ├── restaurant/          # Flutter — restaurant partner app
-│   ├── delivery/            # Flutter — delivery partner app
+│   ├── customer/            # Expo (React Native) — customer app  ✅ prototype exists
+│   ├── restaurant/          # Expo (React Native) — restaurant partner app
+│   ├── delivery/            # Expo (React Native) — delivery partner app
 │   └── admin/               # React + TypeScript + Vite — admin dashboard
 ├── backend/                 # Python FastAPI API + ARQ workers
 │   ├── app/                 # core/, integrations/, modules/, realtime/, workers/
@@ -716,10 +718,11 @@ Hungerly/
 │   ├── Dockerfile
 │   └── .env.example
 ├── packages/
-│   ├── hungerly_api/        # Dart, generated from contracts/openapi.json
-│   ├── hungerly_core/       # Dart shared core
-│   ├── hungerly_ui/         # Dart design system
-│   └── api-client-ts/       # TypeScript, generated
+│   ├── config/              # @hungerly/config — tsconfig base + ESLint   ✅
+│   ├── types/               # @hungerly/types — domain types             ✅
+│   ├── utils/               # @hungerly/utils — money/format/phone       ✅
+│   ├── ui/                  # @hungerly/ui — design system (RN)          ✅
+│   └── api-client/          # @hungerly/api-client — generated (later)
 ├── contracts/
 │   ├── openapi.json         # generated by backend, committed, drift-checked in CI
 │   └── events/              # JSON Schemas for WebSocket/push payloads
@@ -735,10 +738,9 @@ Hungerly/
 │   ├── workflows/           # CI pipelines (path-filtered)
 │   ├── CODEOWNERS
 │   └── pull_request_template.md
-├── Makefile
-├── pubspec.yaml             # Dart workspace root (+ melos config)
-├── package.json             # pnpm workspace root (admin + ts client only)
+├── package.json             # workspace root scripts (turbo)
 ├── pnpm-workspace.yaml
+├── turbo.json
 ├── .editorconfig  .gitignore  README.md
 ```
 
@@ -748,19 +750,19 @@ Hungerly/
 
 | Kind of state | Where it lives | Tool |
 |---|---|---|
-| Server state (restaurants, menu, cart, orders) | Backend; clients cache | Flutter: Riverpod `AsyncNotifier`/`FutureProvider` with explicit invalidation; Admin: TanStack Query |
+| Server state (restaurants, menu, orders) | Backend; clients cache | Mobile: key-based `useQuery` hook over service interfaces (TanStack Query when caching is needed); Admin: TanStack Query |
 | Live state (order status, rider location, new orders) | Backend events | WebSocket stream → provider that patches cached server state; REST refetch on reconnect |
-| Session/auth | Secure storage + memory | `hungerly_core` session controller (single-flight refresh) |
+| Session/auth | Secure storage + memory | Session store (Zustand) + auth service; single-flight token refresh in the API client |
 | UI state (form inputs, selected tab) | Widget/component | Local state / form libraries |
 | Persistent preferences | Device | shared_preferences / localStorage (non-sensitive only) |
 
-Principles: the **cart is server-side** (single source of truth for pricing); optimistic updates only for low-risk toggles (favourite, availability) with rollback; never optimistic for money or order transitions.
+Principles: the **cart is server-side** once the backend exists (single source of truth for pricing; the prototype keeps a local Zustand cart with an *estimated* bill); optimistic updates only for low-risk toggles (favourite, availability) with rollback; never optimistic for money or order transitions.
 
 ## 39. Error handling
 
 - **Backend:** domain errors are typed exceptions (`DomainError(code, status, detail)`) raised by services and mapped centrally to RFC 9457 responses; unexpected exceptions → `500` with `request_id` only (no stack traces to clients) and reported to Sentry.
 - **Error codes** are stable strings (`order.invalid_transition`) listed in OpenAPI and mapped to user-facing messages in clients (localisable).
-- **Clients:** `hungerly_core` converts HTTP/transport errors into `AppFailure` types (network, unauthorized, forbidden, validation, conflict, server, upgrade_required); screens render standard error views with retry; validation errors highlight fields.
+- **Clients:** the service layer converts HTTP/transport errors into typed `ServiceError`s with the same codes (network, unauthorized, forbidden, validation, conflict, server, upgrade_required); screens render standard error views with retry; validation errors highlight fields.
 - **Workers:** retries with exponential backoff; after max attempts jobs move to a dead-letter set with alerting; handlers are idempotent.
 - **External providers:** timeouts, circuit breakers, graceful degradation (e.g. SMS provider down → clear message + retry later; maps down → manual address entry).
 
@@ -774,7 +776,7 @@ Principles: the **cart is server-side** (single source of truth for pricing); op
 
 ## 41. Monitoring
 
-- **Error tracking:** Sentry for backend, workers, Flutter apps, admin (free/low tier at start).
+- **Error tracking:** Sentry for backend, workers, mobile apps, admin (free/low tier at start).
 - **Metrics:** Prometheus-format metrics exposed by API/workers (request rate/latency/errors by route, DB pool usage, queue depth and job latency, WebSocket connections, dispatch time-to-accept, payment success rate, notification failures) scraped into Grafana Cloud (free tier) or the hosting platform's metrics.
 - **Uptime:** external checks on `/health/ready` and the admin site.
 - **Business dashboards:** orders per hour, cancellation rate, restaurant acceptance time, delivery time, riders online.
@@ -894,11 +896,11 @@ Prerequisites (pinned versions recorded in repo files):
 | Docker + Docker Compose | recent | — |
 | Python | 3.13 | `backend/.python-version` |
 | uv | recent | — |
-| Flutter (stable) via FVM | pinned stable | `.fvmrc` |
+| Expo CLI (via `npx expo`) / EAS CLI | per Expo SDK | `apps/*/package.json` |
 | Node.js | 24 LTS | `.nvmrc` |
-| pnpm | via Corepack | `package.json#packageManager` |
+| pnpm | 10.x via Corepack | `package.json#packageManager` |
 | Android Studio (SDK, emulator); Xcode on macOS for iOS | — | — |
-| make | — | — |
+| Android device/emulator with a development build; iOS requires macOS or EAS Build | — | — |
 
 Local services via `infra/docker/compose.yaml`: PostgreSQL + PostGIS, Redis, MinIO (S3-compatible storage), Mailpit (email capture). Payment provider in **test mode** with developers' own test keys in local `.env` (never committed). SMS in local/dev uses a **console/log adapter** (OTP printed to backend logs, allowed only when `APP_ENV=local`) — a development adapter, not a fake production login.
 
@@ -925,8 +927,7 @@ Coverage targets: backend domain services ≥ 80% lines; payments, orders and au
 | Workflow | Trigger paths | Steps |
 |---|---|---|
 | `backend-ci` | `backend/**`, `contracts/**` | uv sync → ruff (lint+format check) → mypy → import-linter → pytest with PostgreSQL/Redis service containers → OpenAPI drift check → Docker build → image scan |
-| `flutter-ci` | `apps/customer|restaurant|delivery/**`, `packages/hungerly_*/**`, `contracts/**` | Flutter pinned → `melos bootstrap` → `dart format --set-exit-if-changed` → `flutter analyze` → `flutter test` → build debug APK (smoke) |
-| `admin-ci` | `apps/admin/**`, `packages/api-client-ts/**`, `contracts/**` | pnpm install (frozen) → lint → typecheck → test → build |
+| `apps-ci` | `apps/**`, `packages/**`, `contracts/**` | pnpm install (frozen) → `turbo run lint typecheck test --filter=...[origin/main]` → `prettier --check` → `expo-doctor` → `expo export` (Android + iOS bundle smoke build) |
 | `security` | all PRs + weekly | gitleaks, dependency review, CodeQL |
 | `docs` | `docs/**` | markdown lint, link check |
 
@@ -963,7 +964,7 @@ Documented in `backend/.env.example` and `apps/admin/.env.example` (names only; 
 | `SENTRY_DSN` | backend/apps | no (low sensitivity) | Error tracking |
 | `LOG_LEVEL` | backend | no | Logging |
 | `VITE_API_BASE_URL`, `VITE_SENTRY_DSN`, `VITE_GOOGLE_MAPS_BROWSER_KEY` | admin | no (restricted public keys) | Admin build config |
-| `API_BASE_URL`, `ENV`, `GOOGLE_MAPS_*_KEY`, `SENTRY_DSN` | Flutter apps (dart-define) | no (platform-restricted keys) | App build config |
+| `EXPO_PUBLIC_API_BASE_URL`, `EXPO_PUBLIC_ENV`, `EXPO_PUBLIC_GOOGLE_MAPS_*_KEY`, `EXPO_PUBLIC_SENTRY_DSN` | mobile apps (`EXPO_PUBLIC_*` are embedded in the app) | no (public, platform-restricted keys only) | App build config |
 
 Rules: `.env` files are git-ignored; only `.env.example` is committed; the backend refuses to start if required secrets are missing or if dev-only adapters are enabled outside `APP_ENV=local`.
 
@@ -1019,7 +1020,7 @@ Three pillars tied together by `request_id` (and OpenTelemetry trace ids once tr
 - **Logs:** structured JSON (§40).
 - **Metrics:** RED metrics per endpoint, queue metrics, business KPIs (§41).
 - **Traces:** OpenTelemetry instrumentation for FastAPI, SQLAlchemy, Redis and HTTP clients; sampled (e.g. 10%, 100% for errors); exported to Grafana Tempo/Sentry performance. Enabled in Phase 12 if not earlier.
-- **Client observability:** Sentry for Flutter/admin with release tracking; app start time, screen load time, API error rates by app version.
+- **Client observability:** Sentry for mobile apps/admin with release tracking; app start time, screen load time, API error rates by app version.
 - **Operational runbooks** in `docs/runbooks/` (Phase 11): payment webhook backlog, dispatch stuck, SMS provider outage, DB failover, rollback.
 
 ## 58. Backup and disaster recovery
@@ -1087,14 +1088,15 @@ A change (PR) is **done** when:
 
 | # | Risk | Impact | Likelihood | Mitigation |
 |---|---|---|---|---|
-| R1 | Two-person team builds four clients + backend | Delays, burnout | High | Strict MVP scope; shared Flutter packages; generated clients; vertical slices; defer admin polish |
+| R1 | Two-person team builds four clients + backend | Delays, burnout | High | Strict MVP scope; shared TypeScript packages; generated client; vertical slices; defer admin polish |
 | R2 | Payment edge cases (pending UPI, duplicate webhooks, partial failures) | Money loss, customer trust | Medium | Idempotency, state machine, webhook dedupe, reconciliation job, extensive test-mode scenarios |
 | R3 | Background location unreliable on Android OEM builds (battery optimisers) | Poor tracking/dispatch | High | Foreground service, battery-optimisation exemption flow, stale-location detection, polling fallback, test on popular devices |
 | R4 | Missed restaurant orders (app killed, tablet asleep, network) | Cancellations | Medium | High-priority FCM + sound channels, keep-awake mode, acceptance timeout, ops alerts, SMS/call fallback post-MVP |
 | R5 | SMS/OTP cost and deliverability (DLT rules) | Login failures, costs | Medium | DLT registration early, provider with India routes, rate limits, long sessions, SMS retriever autofill |
 | R6 | Maps API costs | Budget overrun | Medium | Client-side usage only, session tokens, quotas, budget alerts, alternative provider evaluation |
 | R7 | Regulatory/tax (GST, TCS, FSSAI, DPDP Act, RBI payment aggregator rules) | Legal exposure | Medium | Legal/tax advisor before launch; keep data model flexible (tax fields, retention) |
-| R8 | Flutter background/platform plugin limitations | Rework | Low–Med | Spike background location + FCM on target devices in Phase 1 |
+| R8 | React Native/Expo background and native-module limitations (background location, OEM battery managers, payments SDK) | Rework | Medium | Spike `expo-location` + `expo-task-manager`, push and Razorpay in a development build on target devices in Phase 1 |
+| R13 | JS-thread performance on low-end Android | Janky lists/animations | Medium | Hermes, Reanimated UI-thread animations, virtualised lists, resized/cached images, profiling on real low-end devices |
 | R9 | Realtime scaling (WebSocket connections, Redis pub/sub) | Degraded tracking | Low at pilot | Stateless design, polling fallback, load test, extract location service at scale |
 | R10 | Schema changes after launch | Downtime/bugs | Medium | Expand/contract migrations, review, backups |
 | R11 | Security incidents (account takeover, admin compromise) | Severe | Low–Med | MFA for admins, session rotation, rate limits, audit logs, least privilege, security reviews |
@@ -1122,13 +1124,14 @@ These require product/business input or later evidence. Each needs an owner and 
 | OD-14 | Maps provider | Google, Ola Maps, Mapbox, MapmyIndia | Google for MVP; re-evaluate on cost after pilot | Phase 4 |
 | OD-15 | Email provider | Resend, Postmark, SES | Decide at Phase 2 by deliverability/cost | Phase 2 |
 | OD-16 | Mobile CI/CD | Fastlane on GitHub Actions / Codemagic | Fastlane on GitHub Actions (no extra vendor) | Phase 11 |
-| OD-17 | Restaurant web portal in addition to app | Flutter web build / separate web / none | None for MVP | Post-MVP |
+| OD-17 | Restaurant web portal in addition to app | Expo web build / separate web / none | None for MVP | Post-MVP |
 | OD-18 | Languages at launch | English only / + regional | English only | Phase 4 |
-| OD-19 | Minimum OS versions | — | Follow current Flutter stable minimums; confirm with target device data | Phase 1 |
+| OD-19 | Minimum OS versions | — | Follow the Expo SDK / React Native minimums; confirm with target device data | Phase 1 |
 | OD-20 | Branch model: where integration testing happens (`balaji`/`teammate` → `main` directly, or an integration branch) | — | Feature → personal branch → PR to `main`; `main` deploys to staging, tags deploy to production | Phase 1 |
 | OD-21 | Pre-launch external penetration test | — | Recommended before public launch; budget-dependent | Phase 11 |
 | OD-22 | Search engine migration trigger | Postgres FTS → Meilisearch/OpenSearch | Stay on Postgres until metrics say otherwise | Post-MVP |
-| OD-23 | Deep-link scheme / app-links domain, app names and bundle ids | — | Decide with branding | Phase 1 |
+| OD-23 | Deep-link scheme / app-links domain, app names and bundle ids | — | Decide with branding (prototype uses scheme `hungerly`) | Phase 1 |
+| OD-24 | Backend platform: FastAPI modular monolith (ADR-002/003/004) vs Supabase (managed Postgres + Auth + storage) | FastAPI as designed / Supabase / hybrid (Supabase Postgres + FastAPI) | Undecided — Supabase was mentioned as the planned platform after this blueprint was written. The frontend is backend-agnostic via service interfaces; decide before Phase 2 and update ADR-002/004 accordingly | Phase 2 |
 
 ---
 
@@ -1136,18 +1139,18 @@ These require product/business input or later evidence. Each needs an owner and 
 
 For each major decision: recommendation, need, alternatives, rationale, cost and scalability implications. Longer reasoning is in the ADRs.
 
-### A.1 Repository structure — Monorepo (ADR-001)
-- **Recommended:** single polyglot monorepo; Dart pub workspaces + Melos, uv, pnpm (admin only), root Makefile; no Turborepo/Nx.
-- **Why needed:** four clients and a backend share one API contract; changes often span backend + clients.
-- **Alternatives:** polyrepo per app; monorepo with Turborepo/Nx.
-- **Why selected:** atomic cross-cutting PRs, single CI, one place for docs/contracts; Turborepo/Nx add little for one JS app and don't manage Dart/Python.
-- **Cost:** none (tooling is free).
-- **Scalability:** path-filtered CI keeps build times low; can split repos later if teams grow.
+### A.1 Repository structure — Monorepo with pnpm + Turborepo (ADR-001, ADR-012)
+- **Recommended:** single repository; pnpm workspaces + Turborepo for all TypeScript apps and packages; uv for the Python backend.
+- **Why needed:** four clients and a backend share one API contract; changes often span backend + clients; shared UI/types/utils packages.
+- **Alternatives:** polyrepo per app; pnpm without Turborepo; Nx.
+- **Why selected:** atomic cross-cutting PRs, one CI, cached task graph across four TypeScript apps (the condition ADR-001 set for adopting Turborepo).
+- **Cost:** none (remote caching off).
+- **Scalability:** Turborepo filters keep CI proportional to what changed.
 
 ### A.2 Backend — Python 3.13 + FastAPI modular monolith (ADR-002)
 - **Why needed:** business logic, APIs, realtime, jobs.
 - **Alternatives:** Node.js/NestJS (TypeScript end-to-end with admin), Go (performance), Django + DRF (batteries included), microservices.
-- **Why selected:** team familiarity with Python/FastAPI; async I/O suits an I/O-bound workload; Pydantic gives validation + OpenAPI generation (contract-first with codegen for Dart and TS); strongest ecosystem for future AI/ML integration; a modular monolith avoids distributed-system cost at pilot scale. TypeScript end-to-end is less valuable because mobile is Dart.
+- **Why selected:** team familiarity with Python/FastAPI; async I/O suits an I/O-bound workload; Pydantic gives validation + OpenAPI generation (contract-first with TypeScript client codegen); strongest ecosystem for future AI/ML integration; a modular monolith avoids distributed-system cost at pilot scale. With React Native (ADR-011) a TypeScript backend (NestJS) would allow sharing types end to end; FastAPI is kept because the OpenAPI → TypeScript client gives the same type safety and Python suits future AI work — the backend platform itself is open decision OD-24.
 - **Cost:** small containers; low.
 - **Scalability:** stateless horizontal scaling; CPU-heavy work to workers; hot modules (dispatch/location) extractable later.
 
@@ -1165,16 +1168,16 @@ For each major decision: recommendation, need, alternatives, rationale, cost and
 - **Cost:** one small managed instance.
 - **Scalability:** scale vertically, then split roles (cache vs queue) into separate instances; move to a dedicated broker only if needed.
 
-### A.5 Mobile — Flutter for all three apps (ADR-005)
+### A.5 Mobile — React Native + Expo for all three apps (ADR-011, supersedes ADR-005)
 - **Why needed:** Android + iOS apps with maps, background location, payments, push.
-- **Alternatives:** React Native/Expo, native Kotlin + Swift, PWA.
-- **Why selected:** one code base per app for both platforms, shared Dart packages across three apps, strong performance on low-end Android, mature plugins for maps/location/FCM/Razorpay; team preference. React Native's main advantage (sharing TS with the web) is minor because types come from OpenAPI codegen anyway.
-- **Cost:** free; one skill set.
-- **Scalability (of development):** shared design system and core packages keep three apps consistent.
+- **Alternatives:** Flutter (previous choice), bare React Native, native Kotlin + Swift, PWA.
+- **Why selected:** one language (TypeScript) across mobile, admin and shared packages; Expo Router, config plugins, EAS Build/Update reduce native maintenance for a two-person team; shared `@hungerly/ui`, types and utils.
+- **Cost:** free tooling; EAS free tier to start.
+- **Scalability (of development):** new apps reuse the design system and packages; performance on low-end Android managed with Hermes, Reanimated and list virtualisation.
 
 ### A.6 Admin web — React + TypeScript + Vite SPA (ADR-006)
 - **Why needed:** internal desktop dashboard with dense tables, forms, maps.
-- **Alternatives:** Next.js, Flutter web, low-code admin (Retool, Appsmith), Django admin.
+- **Alternatives:** Next.js, Expo web, low-code admin (Retool, Appsmith), Django admin.
 - **Why selected:** an authenticated internal tool needs no SSR/SEO, so a static SPA is the simplest and cheapest (static hosting, no Node server, smaller attack surface); richest web ecosystem for data tables/forms/maps. Next.js is reserved for a future public customer web app where SSR/SEO matter.
 - **Cost:** static hosting (near zero).
 - **Scalability:** CDN-served; backend handles load.
@@ -1189,12 +1192,12 @@ For each major decision: recommendation, need, alternatives, rationale, cost and
 
 ### A.8 API style — REST + OpenAPI codegen; WebSocket for realtime (ADR-007)
 - **Alternatives:** GraphQL, gRPC, Firebase realtime/Firestore listeners, SSE.
-- **Why selected:** simplest to secure, cache and debug; OpenAPI generated from code gives typed Dart/TS clients; WebSocket covers bidirectional future needs; push handles background.
+- **Why selected:** simplest to secure, cache and debug; OpenAPI generated from code gives a typed TypeScript client; WebSocket covers bidirectional future needs; push handles background.
 - **Cost/scalability:** no extra infrastructure; Redis pub/sub fan-out scales horizontally at pilot–multi-city scale.
 
 ### A.9 Payments — Razorpay (ADR-009)
 - **Alternatives:** Cashfree, PayU, Stripe.
-- **Why selected:** India-first methods (UPI intents, cards, netbanking), Flutter SDK, webhooks, refunds API, Route for marketplace splits later, good documentation.
+- **Why selected:** India-first methods (UPI intents, cards, netbanking), React Native SDK, webhooks, refunds API, Route for marketplace splits later, good documentation.
 - **Cost:** per-transaction fees (negotiable at volume); no fixed fee.
 - **Scalability:** provider-scaled; interface allows adding a second gateway for redundancy.
 

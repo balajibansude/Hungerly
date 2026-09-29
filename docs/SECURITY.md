@@ -45,7 +45,7 @@ Do not open a public issue. Contact the maintainers privately (a `security@` add
 | Validation | Signature, `alg` allow-list (no `none`, no HS/RS confusion), `iss`, `aud`, `exp`/`nbf` with ≤ 30 s leeway, session not revoked (Redis deny-list by `sid`) |
 | Refresh token | Opaque 256-bit random; stored as HMAC-SHA256 (with pepper) in `auth_sessions`; rotated on each use; old token reuse ⇒ **revoke whole session** and audit `auth.refresh_reuse_detected` |
 | Lifetimes | Mobile: 30-day sliding / 90-day absolute. Admin: 12-hour sliding / 7-day absolute |
-| Storage — mobile | Refresh token in `flutter_secure_storage` (iOS Keychain, Android Keystore-backed); access token in memory only |
+| Storage — mobile | Refresh token in `expo-secure-store` (iOS Keychain, Android Keystore-backed); access token in memory only |
 | Storage — admin web | Refresh token in cookie `__Host-hg_rt`: `HttpOnly; Secure; SameSite=Strict; Path=/`; scoped by the refresh endpoint's checks; access token in memory (never localStorage) |
 | Key rotation | New signing key added with new `kid`; old public keys kept until all tokens expire; rotation at least yearly and immediately on suspected compromise |
 | Logout | Revokes session server-side; client deletes tokens |
@@ -132,7 +132,7 @@ Principle of least privilege: admins receive the narrowest sub-role; role change
 - **Admin SPA:** React escapes by default; `dangerouslySetInnerHTML` is forbidden (lint rule) except through a reviewed sanitiser (DOMPurify) if ever needed.
 - **Content Security Policy** for the admin: `default-src 'self'`; `script-src 'self'` (+ Maps origins); no `unsafe-inline` scripts; `frame-ancestors 'none'`; `object-src 'none'`; `base-uri 'self'`; report-only first, then enforced.
 - User-generated content (reviews, names, instructions) is stored as plain text, length-limited, and rendered as text in all clients; never interpreted as HTML/Markdown.
-- Flutter renders text widgets (no web views for user content).
+- React Native renders user content as `Text` (no WebViews or HTML rendering for user content).
 
 ## CSRF
 
@@ -182,7 +182,7 @@ Principle of least privilege: admins receive the narrowest sub-role; role change
 ## Mobile app security (MASVS highlights)
 
 - Tokens only in secure storage; no sensitive data in shared preferences, logs or screenshots of sensitive screens (payment, OTP) — `FLAG_SECURE` where appropriate.
-- Release builds: obfuscation (`--obfuscate --split-debug-info`), debugging disabled, cleartext traffic disabled (Android network security config), ATS on iOS.
+- Release builds: Hermes bytecode, dev menu/debugging disabled, source maps uploaded to Sentry but not shipped, cleartext traffic disabled (Android), ATS on iOS. `EXPO_PUBLIC_*` values are embedded in the app and must never contain secrets.
 - Certificate pinning: not in MVP (operational risk with rotating certificates); re-evaluate post-launch.
 - Root/jailbreak detection and app attestation (Play Integrity / App Attest) considered for OTP abuse protection post-MVP.
 - Deep links validated; no sensitive actions triggered purely by a link without user confirmation.

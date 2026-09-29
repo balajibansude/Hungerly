@@ -1,6 +1,6 @@
 # ADR-001: Polyglot monorepo without Turborepo/Nx
 
-- Status: Proposed
+- Status: Proposed — tooling superseded by [ADR-012](ADR-012-pnpm-turborepo.md) (2026-09-29); the single-repository decision stands
 - Date: 2026-09-29
 
 ## Context

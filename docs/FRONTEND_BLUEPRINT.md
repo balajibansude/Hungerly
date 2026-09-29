@@ -1,8 +1,8 @@
 # Hungerly — Frontend Blueprint
 
-> Status: **Draft for review** (Phase 0). Describes UX and client architecture for the four client applications. No implementation yet.
+> Status: **Draft v0.2.** Describes UX and client architecture for the four client applications. Mobile stack updated to React Native + Expo by [ADR-011](decisions/ADR-011-react-native-expo.md). A customer-app prototype exists — see [frontend/CUSTOMER_APP.md](frontend/CUSTOMER_APP.md) for what is implemented.
 
-Related: [BLUEPRINT.md](BLUEPRINT.md) · [API_BLUEPRINT.md](API_BLUEPRINT.md) · [ADR-005](decisions/ADR-005-mobile-framework.md) · [ADR-006](decisions/ADR-006-admin-web.md)
+Related: [BLUEPRINT.md](BLUEPRINT.md) · [API_BLUEPRINT.md](API_BLUEPRINT.md) · [ADR-011](decisions/ADR-011-react-native-expo.md) · [ADR-006](decisions/ADR-006-admin-web.md) · [frontend/DESIGN_SYSTEM.md](frontend/DESIGN_SYSTEM.md)
 
 ---
 
@@ -10,56 +10,62 @@ Related: [BLUEPRINT.md](BLUEPRINT.md) · [API_BLUEPRINT.md](API_BLUEPRINT.md) ·
 
 | App | Users | Technology | Platforms (MVP) | Folder |
 |---|---|---|---|---|
-| Customer | Customers | Flutter | Android, iOS | `apps/customer` |
-| Restaurant (Partner) | Restaurant owners, managers, staff | Flutter | Android phones & tablets (primary), iOS | `apps/restaurant` |
-| Delivery | Delivery partners | Flutter | Android (primary), iOS | `apps/delivery` |
+| Customer | Customers | React Native + Expo | Android, iOS | `apps/customer` |
+| Restaurant (Partner) | Restaurant owners, managers, staff | React Native + Expo | Android phones & tablets (primary), iOS | `apps/restaurant` |
+| Delivery | Delivery partners | React Native + Expo | Android (primary), iOS | `apps/delivery` |
 | Admin | Hungerly operations, support, finance | React + TypeScript (Vite SPA) | Desktop browsers | `apps/admin` |
 
-Why the restaurant app is mobile/tablet rather than web for MVP: restaurants run on a counter tablet or the owner's phone, need loud **push alerts for new orders even when the app is backgrounded**, and benefit from sharing the Flutter design system and API client. A web version of the restaurant app can be produced later from the same Flutter code base (Flutter web) or as a separate portal if restaurants request it (open decision).
+Why the restaurant app is mobile/tablet rather than web for MVP: restaurants run on a counter tablet or the owner's phone, need loud **push alerts for new orders even when the app is backgrounded**, and benefit from sharing the design system and API client with the other mobile apps. A web version of the restaurant app can be produced later from the same code base (Expo web) or as a separate portal if restaurants request it (open decision).
 
 ---
 
 ## 2. Client architecture
 
-### 2.1 Flutter apps (customer, restaurant, delivery)
+### 2.1 Mobile apps (customer, restaurant, delivery) — React Native + Expo
 
 **Layering (per app, feature-first):**
 
 ```
-apps/<app>/lib/
-  main.dart                 # bootstrap: env config, error handlers, DI (ProviderScope)
-  app/                      # MaterialApp.router, theme, router, app-level listeners
-  features/<feature>/
-    presentation/           # screens, widgets (no business logic)
-    application/            # Riverpod notifiers/controllers, UI state
-    data/                   # repositories wrapping the generated API client
-    domain/                 # app-specific models/value objects (only when API models are not enough)
-  l10n/                     # ARB files
+apps/<app>/
+  app.json                  # Expo config (name, scheme, plugins, splash, icons)
+  src/app/                  # Expo Router routes only — every file is a screen, _layout files are navigators
+  src/features/<feature>/   # components, hooks and pure logic for one feature (cart, menu, auth, …)
+  src/services/             # service contracts (interfaces), errors, provider, mock implementations
+  src/hooks/                # cross-feature hooks (e.g. useQuery)
+  src/mock/                 # prototype data — imported only by services/mock
 ```
 
-Shared Dart packages (in `packages/`):
+Shared TypeScript packages (in `packages/`):
 
 | Package | Contents |
 |---|---|
-| `hungerly_api` | **Generated** Dart client + models from the backend OpenAPI spec. Never edited by hand |
-| `hungerly_core` | HTTP setup (Dio, auth interceptor with single-flight token refresh, request-id, retry policy), secure token storage, env config, error mapping (`ProblemDetails` → typed `AppFailure`), money/time formatting, logging, analytics facade, WebSocket client with reconnect/backoff, push-notification plumbing |
-| `hungerly_ui` | Design system: theme tokens (color, typography, spacing, radius), components (buttons, inputs, cards, bottom sheets, status chips, skeleton loaders, empty/error views, price text, veg/non-veg marks), icons, illustrations |
+| `@hungerly/ui` | Design system: tokens (colour, typography, spacing, radius, elevation, motion) and accessible React Native components (Text, Button, IconButton, TextField, SearchBar, Chip, Badge, Card, Rating, Price, QuantitySelector, FoodTypeMark, Skeleton, Empty/Error/Loading states, ConfirmDialog, RemoteImage, Avatar, Screen, ScreenHeader, SectionHeader). See [frontend/DESIGN_SYSTEM.md](frontend/DESIGN_SYSTEM.md) |
+| `@hungerly/types` | Client domain types (camelCase, money in minor units) |
+| `@hungerly/utils` | Money arithmetic/formatting (₹, Indian grouping), distance/time/rating formatters, phone helpers |
+| `@hungerly/config` | Shared tsconfig and ESLint config |
+| `@hungerly/api-client` (later) | Generated from the OpenAPI contract; implements the apps' service interfaces; handles auth headers, single-flight token refresh, request ids, error mapping |
 
-**Key choices** (details in ADR-005):
+**Key choices** (details in ADR-011):
 
 | Concern | Choice | Notes |
 |---|---|---|
-| State management | **Riverpod** (with code generation) | Compile-safe DI + state, testable without widgets, supports async state (`AsyncValue`) that maps cleanly to loading/empty/error states |
-| Navigation | **go_router** | Declarative routes, deep links (push notification → order screen), auth redirects |
-| Networking | **Dio** + generated client | Interceptors for auth refresh, request id, logging |
-| Local persistence | `flutter_secure_storage` (tokens), `shared_preferences` (non-sensitive prefs) | No offline database in MVP; server is source of truth |
-| Maps | Google Maps Flutter plugin (behind a thin `MapView` abstraction in `hungerly_ui`) | Provider can be swapped (open decision on Ola/Mapbox) |
-| Location | `geolocator`; delivery app uses a foreground service for background tracking on Android | Required for rider tracking; strict permission UX |
-| Push | Firebase Cloud Messaging (`firebase_messaging`) + local notifications | Restaurant app uses a high-priority channel with custom sound |
-| Payments | Razorpay Flutter SDK (customer app only) | Server creates the payment order; SDK only collects payment |
-| Errors/crashes | Sentry Flutter SDK | Release health, crash reports with PII scrubbing |
-| Localisation | `flutter_localizations` + ARB | English at launch; Hindi/Marathi post-MVP (open decision) |
-| Flavours | `dev`, `staging`, `prod` flavours with separate bundle ids and API base URLs | Config via `--dart-define-from-file`, no secrets in the app |
+| Framework | Expo SDK (57 at time of writing), React Native, TypeScript strict | Development builds once native modules beyond Expo Go are needed |
+| Navigation | **Expo Router** | File-based routes, typed routes, deep links (push → order screen), `Stack.Protected` for signed-in areas |
+| Data access | **Service interfaces** + key-based `useQuery` hook | Mock implementations now; API client later; TanStack Query can replace the hook behind the same shape |
+| Shared client state | **Zustand** (cart, session) | Only where state is genuinely shared; everything else is local state |
+| Styling | Typed tokens + `StyleSheet` | No Tailwind layer; every value comes from `@hungerly/ui` tokens |
+| Animation | React Native Reanimated | Press feedback, count changes, onboarding dots, skeleton pulse, cart bar entrance; respects reduce-motion |
+| Images | expo-image | Memory/disk cache, transitions, graceful fallback tile |
+| Icons | `@expo/vector-icons` (Ionicons only) | Same glyphs on iOS and Android |
+| Fonts | Plus Jakarta Sans (5 weights) via `expo-font` | Only weights in the type scale are bundled |
+| Secure storage (later) | `expo-secure-store` | Refresh tokens (Keychain / Android Keystore) |
+| Maps (later) | `react-native-maps` behind a thin `MapView` abstraction | Provider can be swapped (open decision on Ola/Mapbox) |
+| Location (later) | `expo-location` + `expo-task-manager` (delivery app background tracking) | Requires development build and device testing (Phase 1 spike) |
+| Push (later) | FCM via `expo-notifications` or `@react-native-firebase/messaging` (decide in the Phase 1 spike) | Restaurant app needs a high-priority channel with custom sound |
+| Payments (later) | Razorpay React Native SDK via config plugin (customer app only) | Server creates the payment order; SDK only collects payment |
+| Errors/crashes (later) | Sentry React Native SDK | Release health, PII scrubbing |
+| Localisation (later) | `expo-localization` + i18n library | English at launch |
+| Environments | `EXPO_PUBLIC_*` build variables per environment (dev/staging/prod) | Only public, platform-restricted values; never secrets |
 
 ### 2.2 Admin web app
 
@@ -89,7 +95,7 @@ apps/admin/src/
 
 - **Every data screen defines four states:** loading (skeletons, not spinners, for lists), empty (illustration + one clear action), error (message from error `code` + retry), and content. Partial failures (e.g. one widget on the dashboard) degrade locally.
 - **Money** always shown with `₹` and correct rounding from minor units; never computed on the client beyond display.
-- **Order status** uses one shared status vocabulary and colour mapping across all apps (from `hungerly_ui`).
+- **Order status** uses one shared status vocabulary and colour mapping across all apps (from `@hungerly/ui`).
 - **Connectivity:** a global offline banner; mutating buttons disabled while offline; queued retries only for idempotent calls.
 - **Accessibility:** minimum 48dp touch targets, semantic labels, text scaling up to 200%, colour contrast WCAG AA; veg/non-veg marks never rely on colour alone.
 - **Session expiry:** transparent refresh; on refresh failure, return to login and preserve the intended route.
@@ -229,11 +235,11 @@ Deep links (push notification payloads): `hungerly://orders/{id}` (customer), `h
 
 ## 8. Frontend testing approach
 
-| Level | Flutter | Admin |
+| Level | Mobile (Expo) | Admin |
 |---|---|---|
-| Unit | Riverpod notifiers, repositories with mocked API client, formatting utilities | Hooks, utils (Vitest) |
-| Widget/component | Key widgets and screens in each state (loading/empty/error/content) | React Testing Library |
-| Golden tests | Design-system components in `hungerly_ui` | — |
-| Integration/E2E | `integration_test` for critical flows (login, order placement, accept, delivery) against the staging API | Playwright for login, restaurant approval, order refund |
+| Unit | Pure logic (pricing, option selection, routing decisions), stores, service mocks — Jest (`jest-expo`) ✅ in place | Hooks, utils (Vitest or Jest) |
+| Component | Key components and screens in each state (loading/empty/error/content) — React Native Testing Library (to add) | React Testing Library |
+| Visual | Design-system components (story/screenshot tests, to decide) | — |
+| E2E | Maestro (or Detox) for critical flows (login, order placement, accept, delivery) against staging | Playwright for login, restaurant approval, order refund |
 
 API mocks in tests use the generated models and recorded fixtures — never a hand-written fake backend shipped in the app.

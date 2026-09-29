@@ -1,15 +1,16 @@
 # Hungerly — Development Roadmap
 
-> Status: **Draft for review** (Phase 0). Only Phase 0 is in progress. No later phase starts until the blueprint is approved and the previous phase's acceptance criteria are met (phases may overlap where dependencies allow, as noted).
+> Status: **Draft v0.2.** Phase 0 complete (pending approval); Phase 1A (frontend foundation + customer app prototype) implemented on `feature/p1-customer-foundation`. No later phase starts until the blueprint is approved and the previous phase's acceptance criteria are met (phases may overlap where dependencies allow, as noted).
 
 Related: [BLUEPRINT.md](BLUEPRINT.md) §59–§61 · [FRONTEND_BLUEPRINT.md](FRONTEND_BLUEPRINT.md) · [API_BLUEPRINT.md](API_BLUEPRINT.md)
 
 ## How we work
 
 - **Vertical slices:** from Phase 2 onward, each phase delivers backend + the client screens that use it, so every phase ends with something demonstrable on real devices against a real backend. No throwaway mock backends.
-- **Contract first inside a phase:** endpoint schemas are defined (Pydantic → OpenAPI) at the start of a slice; the Dart/TS clients are generated so backend and frontend can proceed in parallel, with the frontend using test fixtures from the generated models until the endpoint is live on staging.
+- **Contract first inside a phase:** endpoint schemas are defined (OpenAPI) at the start of a slice; the TypeScript client is generated so backend and frontend can proceed in parallel.
+- **Frontend ahead on mocks:** the mobile apps are built against **service interfaces** with in-memory mock implementations (`src/services/mock`). Order agreed by the project owner: **customer app → restaurant app → delivery app → admin dashboard**. Each app is later connected by swapping the mock services for API-client implementations — screens do not change.
 - **Branches:** each task is a feature branch (`feature/<phase>-<short-name>`) from the developer's branch (`balaji` or `teammate`), merged back by PR; the developer branch is PR'd into `main` when a coherent set of work is complete and CI is green.
-- **Suggested split:** one developer leans backend + admin, the other leans Flutter apps; both review each other's PRs. Adjust per phase.
+- **Suggested split:** one developer leans backend + admin, the other leans the Expo apps; both review each other's PRs. Adjust per phase.
 - **Definition of Done:** BLUEPRINT §61 applies to every task.
 
 ## Phase overview
@@ -54,27 +55,41 @@ Note on the requested order: the original outline placed "Customer application" 
 
 ## Phase 1 — Project foundation
 
-**Objectives:** a walking skeleton — every app and the backend build, run, test and deploy (backend to staging) with CI enforcing quality.
+Split into **1A — frontend foundation** (done) and **1B — platform foundation** (remaining).
+
+### Phase 1A — Frontend foundation + customer app prototype ✅
+
+**Objectives:** a production-quality frontend foundation and a navigable customer app prototype on mock data, independent of the backend technology.
+
+**Delivered** (see [frontend/CUSTOMER_APP.md](frontend/CUSTOMER_APP.md)):
+- pnpm + Turborepo workspace (ADR-012); shared `@hungerly/config`, `@hungerly/types`, `@hungerly/utils`, `@hungerly/ui`.
+- Hungerly design system: contrast-checked colour tokens, typography, spacing, radius, elevation, motion; accessible components.
+- `apps/customer` (Expo SDK 57, Expo Router): splash gate, onboarding, phone login + OTP (prototype code), profile setup, tabs (Home, Search, Orders, Account), restaurant listing with filters/sort, restaurant menu, dish customisation, local cart with estimated bill.
+- Service contracts + mock implementations (the backend boundary); unit tests for pricing, option selection, cart store, entry routing and mocks.
+
+**Acceptance criteria (met):** `pnpm lint`, `pnpm typecheck`, `pnpm test` pass; `expo-doctor` passes; Android and iOS production bundles build with `expo export`; full journey exercised in a rendered build with no console errors.
+
+**Not verified yet:** running on physical Android/iOS devices (requires a device/emulator or EAS build).
+
+### Phase 1B — Platform foundation
+
+**Objectives:** backend skeleton, contract pipeline, CI and staging so apps can be connected.
 
 **Tasks**
-- Monorepo tooling: root `Makefile`, Dart pub workspace + Melos, pnpm workspace (admin + TS client), `backend/` uv project, `.nvmrc`, `.fvmrc`, `.python-version`.
-- Local infrastructure: `infra/docker/compose.yaml` (PostgreSQL + PostGIS, Redis, MinIO, Mailpit).
-- Backend skeleton: app factory, settings validation, structured logging, request id middleware, error handling (Problem Details), health endpoints, DB session, Alembic baseline (extensions: postgis, citext, pg_trgm), outbox table, ARQ worker entrypoint, import-linter contracts.
-- Contract pipeline: OpenAPI export → `contracts/openapi.json` → Dart (`hungerly_api`) and TS (`api-client-ts`) generation scripts; CI drift check.
-- Flutter: create `customer`, `restaurant`, `delivery` apps with flavours (dev/staging/prod), `hungerly_core` (HTTP client, config, error mapping) and `hungerly_ui` (tokens, theme, base components, loading/empty/error views), go_router + Riverpod setup, Sentry wiring.
-- Admin: Vite + React + TS app shell, routing, layout, Tailwind + shadcn/ui, TanStack Query, generated client wiring.
-- CI workflows (backend, flutter, admin, security, docs) with path filters; branch protection; CODEOWNERS; PR template.
-- Staging environment for backend (hosting decision OD-01) with managed PostgreSQL/Redis; automated deploy on merge to `main`.
-- **Technical spikes** (time-boxed): Android background location with foreground service on 2–3 popular devices; FCM high-priority alert with custom sound on a tablet; Razorpay Flutter SDK test checkout.
+- Resolve OD-24 (backend platform) first; then backend skeleton accordingly (app factory, settings, logging, errors, health, DB, migrations, outbox, workers).
+- Local infrastructure: `infra/docker/compose.yaml` (PostgreSQL + PostGIS, Redis, MinIO, Mailpit) if the FastAPI path is kept.
+- Contract pipeline: OpenAPI export → `contracts/openapi.json` → `@hungerly/api-client` generation; CI drift check.
+- CI workflows (apps: turbo lint/typecheck/test + expo-doctor + expo export; backend; security; docs) with path filters; branch protection; CODEOWNERS; PR template.
+- EAS project setup: development builds for Android/iOS; environment variables via `EXPO_PUBLIC_*` per environment.
+- Staging environment for the backend (OD-01).
+- **Technical spikes** (time-boxed, development build on 2–3 popular Android devices): background location with `expo-location` + `expo-task-manager`; high-priority push with custom sound on a tablet; Razorpay React Native SDK test checkout.
 
-**Dependencies:** Phase 0 approval; OD-01 (hosting), OD-19 (min OS), OD-20 (branch flow), OD-23 (bundle ids).
-**Deliverables:** runnable skeletons, CI, staging backend, spike reports in `docs/spikes/`.
+**Dependencies:** Phase 0 approval; OD-01, OD-19, OD-20, OD-23, OD-24.
+**Deliverables:** backend skeleton, CI, staging, EAS dev builds, spike reports in `docs/spikes/`.
 **Acceptance criteria**
-- `make setup && make dev` starts local services and backend on a clean machine following the README.
-- All three Flutter apps launch on an Android emulator and show a health-check screen reading `/health/ready` from local and staging backends.
-- Admin shell runs locally and shows the backend version.
-- CI runs lint, type checks and tests for each area and blocks merge on failure; OpenAPI drift check works.
-- Staging backend deployed automatically from `main`; health checks green.
+- A new contributor can follow the README to run the backend (if applicable) and the customer app.
+- The customer app runs as a development build on a physical Android device.
+- CI blocks merges on lint/type/test failures; OpenAPI drift check works.
 - Spikes documented with go/no-go findings.
 
 ---
@@ -85,8 +100,8 @@ Note on the requested order: the original outline placed "Customer application" 
 
 **Tasks**
 - Backend: `users`, `user_roles`, `auth_sessions`, `device_tokens`, `customer_profiles`, `admin_profiles` migrations; OTP request/verify (SMS adapter: MSG91 + local console adapter), JWT issuance (Ed25519, key rotation via `kid`), refresh rotation with reuse detection, logout, session list/revoke, Redis deny-list, admin email+password (Argon2id) + TOTP enrolment/verification, rate limits, audit events, `/me` endpoints, account deletion request.
-- Flutter (`hungerly_core`): session controller, secure storage, auth interceptor with single-flight refresh, logout on refresh failure.
-- Customer app: C1–C4 screens; Restaurant app: R1; Delivery app: D1.
+- Mobile (`@hungerly/api-client` + app session store): `expo-secure-store` token storage, auth header, single-flight refresh, logout on refresh failure; replace the mock `AuthService`.
+- Customer app: connect C1–C4 (UI already built in Phase 1A); Restaurant app: R1; Delivery app: D1.
 - Admin: A1 (login + MFA enrolment + verification), session handling with HttpOnly refresh cookie + CSRF.
 - DLT registration of OTP SMS template (business task, start early).
 
@@ -225,7 +240,7 @@ Note on the requested order: the original outline placed "Customer application" 
 
 **Tasks**
 - Backend: notifications module (templates, preferences, inbox), FCM integration with token hygiene, outbox relay → notification jobs, WebSocket endpoint with ticket auth and Redis pub/sub fan-out, events per API_BLUEPRINT §2.6, email templates for onboarding/admin.
-- Flutter: push handling (foreground/background/terminated), deep links, notification channels (restaurant new order with custom sound, rider offer), WebSocket client with reconnect and polling fallback; inbox screens (C19, R19, D15).
+- Mobile apps: push handling (foreground/background/terminated), deep links, notification channels (restaurant new order with custom sound, rider offer), WebSocket client with reconnect and polling fallback; inbox screens (C19, R19, D15).
 - Admin: live dashboard updates.
 
 **Dependencies:** Phase 5 (events); integrates with Phases 6–7.
@@ -245,7 +260,7 @@ Testing is continuous in every phase; this phase closes the gaps before launch.
 **Objectives:** confidence that the system is correct, secure and performant at pilot scale.
 
 **Tasks**
-- Critical-flow E2E suites: Flutter `integration_test` (login, order, pay, accept, deliver) and Playwright (admin approve, refund).
+- Critical-flow E2E suites: Maestro (or Detox) for mobile (login, order, pay, accept, deliver) and Playwright for admin (approve, refund).
 - Load tests (k6): browsing, order placement bursts, 500 riders sending locations, WebSocket connections — against a production-sized staging.
 - Security testing: OWASP ZAP baseline, dependency audit, authorization matrix tests review, secrets scan history, threat-model review of payments and auth; external pen test if approved (OD-21).
 - Chaos drills: Redis restart, provider outage simulation (SMS, payments), worker crash mid-job.
@@ -307,4 +322,4 @@ Testing is continuous in every phase; this phase closes the gaps before launch.
 
 ## Immediate next step
 
-**Phase 0 review.** After approval: merge `docs/blueprint` → `balaji` → `main` by PR, resolve Phase 1 blocking decisions (OD-01, OD-19, OD-20, OD-23), then start **Phase 1 — Project foundation**, which includes the Flutter app shells and design system that frontend development builds on.
+**Phase 0 review.** After approval: merge `docs/blueprint` → `balaji` → `main` by PR, review the Phase 1A customer prototype (`feature/p1-customer-foundation`), resolve OD-24 (backend platform) and the Phase 1B blockers (OD-01, OD-19, OD-20, OD-23), then continue with the restaurant app prototype and Phase 1B in parallel.

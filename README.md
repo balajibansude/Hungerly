@@ -2,21 +2,22 @@
 
 Hungerly is a food-delivery platform connecting **customers**, **restaurants** and **delivery partners**, operated through an **admin dashboard**. It is being built by a small team with a focus on correctness (money and order state), low operating cost and a clear path to scale.
 
-> **Project status: Phase 0 — Architecture.** The repository currently contains the architecture blueprint only. No application code has been written yet. Implementation starts after the blueprint is reviewed and approved.
+> **Project status: Phase 1A — frontend foundation.** The architecture blueprint is written (Phase 0) and a **customer app prototype** runs on mock data. There is no backend yet; the backend platform is open decision OD-24.
 
 ## Architecture summary
 
 | Component | Technology | Location |
 |---|---|---|
-| Customer app | Flutter (Android, iOS) | `apps/customer` |
-| Restaurant partner app | Flutter (Android/iOS phones and tablets) | `apps/restaurant` |
-| Delivery partner app | Flutter (Android first, iOS) | `apps/delivery` |
+| Customer app | React Native + Expo (Android, iOS) — prototype ✅ | `apps/customer` |
+| Restaurant partner app | React Native + Expo (Android/iOS phones and tablets) — next | `apps/restaurant` |
+| Delivery partner app | React Native + Expo (Android first, iOS) — later | `apps/delivery` |
 | Admin dashboard | React + TypeScript + Vite (static SPA) | `apps/admin` |
-| Backend API + workers | Python 3.13, FastAPI, SQLAlchemy 2, ARQ — modular monolith | `backend/` |
+| Backend API + workers | Python 3.13, FastAPI, SQLAlchemy 2, ARQ — modular monolith (platform under review: OD-24) | `backend/` |
 | Database | PostgreSQL 16+ with PostGIS | managed service |
 | Cache / queue / realtime | Redis (Valkey-compatible) | managed service |
 | Files | S3-compatible object storage + CDN | managed service |
-| API contract | OpenAPI generated from the backend → generated Dart & TypeScript clients | `contracts/`, `packages/` |
+| Shared TypeScript packages | Design system, domain types, utilities, config (pnpm + Turborepo) | `packages/` |
+| API contract | OpenAPI generated from the backend → generated TypeScript client | `contracts/`, `packages/api-client` |
 
 Key integrations: Razorpay (payments), SMS provider for OTP (MSG91 recommended), Firebase Cloud Messaging (push), Google Maps Platform (maps), Sentry (errors).
 
@@ -24,38 +25,22 @@ Read the full design in [docs/BLUEPRINT.md](docs/BLUEPRINT.md).
 
 ## Repository structure
 
-Planned layout (directories are created in Phase 1):
-
 ```
 apps/
-  customer/        Flutter customer app
-  restaurant/      Flutter restaurant partner app
-  delivery/        Flutter delivery partner app
-  admin/           React + Vite admin dashboard
-backend/           FastAPI API and ARQ workers (Python)
+  customer/        Expo customer app (prototype, mock data)          ✅
+  restaurant/      Expo restaurant partner app                        (next)
+  delivery/        Expo delivery partner app                          (later)
+  admin/           React + Vite admin dashboard                        (later)
 packages/
-  hungerly_api/    generated Dart API client
-  hungerly_core/   shared Dart core (networking, auth, config, errors, realtime)
-  hungerly_ui/     shared Dart design system
-  api-client-ts/   generated TypeScript API client
-contracts/         OpenAPI spec and event schemas
-infra/             local Docker Compose, Terraform (later)
-scripts/           codegen and maintenance scripts
+  config/          @hungerly/config — shared tsconfig + ESLint         ✅
+  types/           @hungerly/types — client domain types               ✅
+  utils/           @hungerly/utils — money, formatting, phone helpers  ✅
+  ui/              @hungerly/ui — design system (React Native)         ✅
+  api-client/      @hungerly/api-client — generated from OpenAPI       (later)
+backend/           API and workers                                     (later, OD-24)
+contracts/         OpenAPI spec and event schemas                      (later)
 docs/              blueprint, schema, API, frontend, roadmap, security, ADRs
-```
-
-Currently present:
-
-```
-docs/
-  BLUEPRINT.md
-  DATABASE_SCHEMA.md
-  API_BLUEPRINT.md
-  FRONTEND_BLUEPRINT.md
-  DEVELOPMENT_ROADMAP.md
-  SECURITY.md
-  decisions/ (ADR-001 … ADR-010)
-README.md  .gitignore  .editorconfig
+package.json  pnpm-workspace.yaml  turbo.json
 ```
 
 ## Development principles
@@ -66,7 +51,7 @@ README.md  .gitignore  .editorconfig
 4. **Keep it simple.** Modular monolith, managed services, no technology without a documented need.
 5. **Contract first.** API schemas generate the OpenAPI spec and typed clients; no hand-written duplicates.
 6. **Secure by default.** No secrets in Git or clients; least privilege; see [docs/SECURITY.md](docs/SECURITY.md).
-7. **Vertical slices.** Each phase delivers backend + UI working together against a real backend.
+7. **Backend-agnostic frontend.** Apps talk to data only through service interfaces; mocks today, the API client later — screens never change for integration.
 8. **Tested and reviewed.** Every change goes through CI and review by the other developer ([Definition of Done](docs/BLUEPRINT.md#61-definition-of-done)).
 
 ## Branch strategy
@@ -86,31 +71,26 @@ Rules:
 
 ## Local setup prerequisites
 
-Installed tools (exact versions will be pinned in repository files during Phase 1):
-
 - Git
-- Docker and Docker Compose
-- Python 3.13 and [uv](https://docs.astral.sh/uv/)
-- Flutter (stable), managed with [FVM](https://fvm.app/)
-- Android Studio (Android SDK + emulator); Xcode on macOS for iOS builds
-- Node.js 24 LTS and pnpm (via Corepack)
-- make
+- Node.js 24 (see `.nvmrc`) and pnpm 10 (via Corepack: `corepack enable`)
+- For running the mobile apps: Android Studio (SDK + emulator) or a phone with Expo Go; Xcode on macOS for iOS simulators
+- Later, for the backend: Python 3.13 + [uv](https://docs.astral.sh/uv/), Docker (depends on OD-24)
 
 ## How to run the project
 
-There is nothing to run yet — Phase 0 contains documentation only.
-
-From Phase 1, the intended workflow is:
-
 ```bash
-make setup     # install toolchain dependencies (uv, melos/pub, pnpm)
-make dev       # start local services (PostgreSQL+PostGIS, Redis, MinIO, Mailpit) and the backend
-make test      # run all test suites
-make lint      # run linters and type checks
-make codegen   # regenerate OpenAPI contract and API clients
+pnpm install              # install all workspace dependencies
+pnpm dev:customer         # start the customer app (Expo dev server)
+
+pnpm lint                 # ESLint across apps and packages (Turborepo)
+pnpm typecheck            # TypeScript across apps and packages
+pnpm test                 # Jest across apps and packages
+pnpm format               # Prettier (code; Markdown is formatted by hand)
 ```
 
-Each area will also document its own commands (`backend/README.md`, `apps/*/README.md`). Local configuration is copied from `.env.example` files into untracked `.env` files; real credentials are never committed.
+The customer prototype uses mock data. Prototype login: any valid Indian mobile number, OTP `123456`. Details: [apps/customer/README.md](apps/customer/README.md).
+
+Local configuration for later phases will be copied from `.env.example` files into untracked `.env` files; real credentials are never committed. Mobile builds only use public `EXPO_PUBLIC_*` values.
 
 ## Documentation
 
@@ -122,15 +102,17 @@ Each area will also document its own commands (`backend/README.md`, `apps/*/READ
 | [FRONTEND_BLUEPRINT.md](docs/FRONTEND_BLUEPRINT.md) | Client architecture and every screen of the four apps |
 | [DEVELOPMENT_ROADMAP.md](docs/DEVELOPMENT_ROADMAP.md) | Phases 0–12 with tasks, dependencies, deliverables and acceptance criteria |
 | [SECURITY.md](docs/SECURITY.md) | Authentication, authorization, secrets, API/payment/upload security, privacy |
-| [decisions/](docs/decisions/) | Architecture Decision Records |
+| [frontend/CUSTOMER_APP.md](docs/frontend/CUSTOMER_APP.md) | Customer app architecture, navigation, state, mock data, backend boundary, commands |
+| [frontend/DESIGN_SYSTEM.md](docs/frontend/DESIGN_SYSTEM.md) | Colours, typography, spacing, components and conventions |
+| [decisions/](docs/decisions/) | Architecture Decision Records (ADR-011: React Native + Expo; ADR-012: pnpm + Turborepo) |
 
 ## Contribution workflow
 
 1. Pick a task from the current phase in the [roadmap](docs/DEVELOPMENT_ROADMAP.md).
 2. Update your developer branch: `git switch balaji && git pull` (or `teammate`), then merge the latest `main` if needed.
-3. Create a work branch: `git switch -c feature/p2-otp-login`.
+3. Create a work branch: `git switch -c feature/p1-restaurant-app`.
 4. Make small, focused commits with clear messages (e.g. `feat(auth): add OTP verification endpoint`).
-5. Run tests and linters locally.
+5. Run `pnpm lint && pnpm typecheck && pnpm test` locally.
 6. Push the work branch and open a PR into your developer branch; request review from the other developer.
 7. When a coherent set of work is ready, open a PR from your developer branch into `main`. CI must pass and one approval is required.
 8. Update docs, `.env.example` and the OpenAPI contract in the same PR when behaviour or configuration changes.

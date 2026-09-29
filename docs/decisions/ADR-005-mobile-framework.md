@@ -1,6 +1,6 @@
 # ADR-005: Flutter for customer, restaurant and delivery apps
 
-- Status: Proposed
+- Status: Superseded by [ADR-011](ADR-011-react-native-expo.md) (2026-09-29)
 - Date: 2026-09-29
 
 ## Context
