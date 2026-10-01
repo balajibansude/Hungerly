@@ -1,0 +1,7 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# React Native apps share UI packages that peer-depend on react/react-native.
+# A hoisted layout guarantees a single copy of each for Metro (see ADR-012).
+nodeLinker: hoisted
