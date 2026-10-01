@@ -1,3 +1,4 @@
+import { useQuery } from '@hungerly/app-core';
 import {
   Chip,
   EmptyState,
@@ -21,7 +22,6 @@ import {
   quickFilters,
   type QuickFilterKey,
 } from '@/features/restaurants/quickFilters';
-import { useQuery } from '@/hooks/useQuery';
 import { useServices, type RestaurantSort } from '@/services';
 
 const sorts: { key: RestaurantSort; label: string }[] = [

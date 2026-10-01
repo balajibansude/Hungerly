@@ -1,3 +1,4 @@
+import { useQuery } from '@hungerly/app-core';
 import {
   Chip,
   EmptyState,
@@ -17,7 +18,6 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'reac
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RestaurantCard } from '@/features/restaurants/components/RestaurantCard';
-import { useQuery } from '@/hooks/useQuery';
 import { useServices } from '@/services';
 
 const SUGGESTIONS = ['Biryani', 'Dosa', 'Pizza', 'Paneer', 'Burger', 'Chai'];

@@ -26,6 +26,9 @@ importers:
       '@expo/vector-icons':
         specifier: ^15.1.1
         version: 15.1.1(expo-font@57.0.4)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/jest-preset@0.86.3(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
+      '@hungerly/app-core':
+        specifier: workspace:*
+        version: link:../../packages/app-core
       '@hungerly/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -109,6 +112,33 @@ importers:
         specifier: ~6.0.3
         version: 6.0.3
 
+  packages/app-core:
+    devDependencies:
+      '@hungerly/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/jest':
+        specifier: ^29.5.14
+        version: 29.5.14
+      '@types/react':
+        specifier: ~19.2.2
+        version: 19.2.18
+      babel-preset-expo:
+        specifier: ~57.0.13
+        version: 57.0.13(@babel/core@7.29.7)(@babel/runtime@7.29.7)(expo@57.0.26)(react-refresh@0.14.2)
+      eslint:
+        specifier: ^9.39.5
+        version: 9.39.5
+      jest:
+        specifier: ^29.7.0
+        version: 29.7.0(@types/node@24.19.0)
+      react:
+        specifier: 19.2.3
+        version: 19.2.3
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
   packages/config:
     dependencies:
       eslint:
@@ -154,6 +184,9 @@ importers:
       expo-image:
         specifier: ~57.0.5
         version: 57.0.5(expo@57.0.26)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/jest-preset@0.86.3(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
+      expo-status-bar:
+        specifier: ~57.0.1
+        version: 57.0.1(expo@57.0.26)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/jest-preset@0.86.3(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
       react:
         specifier: 19.2.3
         version: 19.2.3

@@ -1,4 +1,13 @@
-import { Badge, Button, Screen, ScreenHeader, screenGutter, spacing, Text } from '@hungerly/ui';
+import {
+  Badge,
+  Button,
+  OtpInput,
+  Screen,
+  ScreenHeader,
+  screenGutter,
+  spacing,
+  Text,
+} from '@hungerly/ui';
 import { formatE164India } from '@hungerly/utils';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -11,7 +20,6 @@ import {
   type TextInput,
 } from 'react-native';
 
-import { OtpInput } from '@/features/auth/components/OtpInput';
 import { useSessionStore } from '@/features/auth/session';
 import { PROTOTYPE_OTP, useServices, userMessage } from '@/services';
 

@@ -1,6 +1,7 @@
 /**
  * Expected, user-recoverable failures. `code` values follow the API blueprint's
- * stable error codes (docs/API_BLUEPRINT.md §2.5) so real API errors map 1:1 later.
+ * stable error codes (docs/API_BLUEPRINT.md §2.5, §4) so real API errors map 1:1 later.
+ * One vocabulary for every app; each app only throws the codes its services can produce.
  */
 export type ServiceErrorCode =
   | 'not_found'
@@ -9,6 +10,11 @@ export type ServiceErrorCode =
   | 'auth.otp_expired'
   | 'auth.otp_rate_limited'
   | 'validation'
+  | 'order.invalid_transition'
+  | 'order.version_conflict'
+  | 'restaurant.not_active'
+  | 'restaurant.outside_hours'
+  | 'partner.insufficient_role'
   | 'unknown';
 
 export class ServiceError extends Error {

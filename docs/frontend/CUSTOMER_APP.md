@@ -41,13 +41,12 @@ apps/customer/
 │   │   ├── food/[id].tsx       # dish modal
 │   │   └── cart.tsx
 │   ├── features/               # feature code: components, hooks, pure logic (+ tests)
-│   │   ├── auth/               # session store, entry routing, OTP input, onboarding content
+│   │   ├── auth/               # session store, entry routing, onboarding content
 │   │   ├── cart/               # cart store, pricing (estimate), CartBar, BillSummary, useAddToCart
 │   │   ├── home/               # header, category rail, promo carousel, greeting
 │   │   ├── menu/               # menu row, option picker, selection rules, stepper behaviour
 │   │   └── restaurants/        # restaurant card, info card, skeleton, quick filters
-│   ├── services/               # BACKEND BOUNDARY — contracts, errors, provider, mock implementations
-│   ├── hooks/useQuery.ts       # key-based async data hook (loading/error/success/refresh)
+│   ├── services/               # BACKEND BOUNDARY — contracts, provider, mock implementations
 │   └── mock/                   # prototype data — imported only by services/mock (and onboarding imagery)
 └── package.json
 ```
@@ -56,6 +55,7 @@ Conventions:
 - Files in `src/app` are screens; they fetch through services, hold screen state and compose feature components. Reusable logic lives in `src/features`.
 - Pure business logic (pricing, option rules, routing decisions) is framework-free and unit-tested next to its feature.
 - Imports use the `@/` alias for `src/`, and `@hungerly/*` for shared packages.
+- Shared by every app (not copied): `useQuery`, `ServiceError` and the services provider come from `@hungerly/app-core`; `OtpInput` and `BrandSplash` from `@hungerly/ui`.
 
 ## 3. Navigation
 
@@ -83,7 +83,7 @@ Root Stack
 |---|---|---|
 | Session (signed in, onboarding seen, user) | `features/auth/session.ts` (Zustand) | Needed by the gate, guards and several screens |
 | Cart | `features/cart/store.ts` (Zustand) | Shared by menu, dish modal, cart bar and cart screen |
-| Server data (feeds, menus, search) | `useQuery(key, load)` per screen | Loading/error/refresh with no global cache yet |
+| Server data (feeds, menus, search) | `useQuery(key, load)` per screen (from `@hungerly/app-core`) | Loading/error/refresh with no global cache yet |
 | UI state (filters, selections, dialogs) | Local `useState` | Isolated to a screen |
 
 Cart rules implemented: one restaurant per cart (with "Start a new cart?" confirmation), identical dish + options merge into one line, quantity capped at 20 per line, the cart empties its restaurant when the last line is removed. The bill is an **estimate** (subtotal, delivery fee, offer discount, total, minimum-order and offer gaps) — the server will be the source of truth (FR-CART-2).

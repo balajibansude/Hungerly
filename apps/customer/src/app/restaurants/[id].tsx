@@ -1,3 +1,4 @@
+import { useQuery } from '@hungerly/app-core';
 import type { Food, MenuCategory } from '@hungerly/types';
 import {
   Chip,
@@ -23,7 +24,6 @@ import { useAddToCart } from '@/features/cart/useAddToCart';
 import { MenuItemRow } from '@/features/menu/components/MenuItemRow';
 import { useMenuItemControls } from '@/features/menu/useMenuItemControls';
 import { RestaurantInfo } from '@/features/restaurants/components/RestaurantInfo';
-import { useQuery } from '@/hooks/useQuery';
 import { useServices } from '@/services';
 
 const HERO_HEIGHT = 240;

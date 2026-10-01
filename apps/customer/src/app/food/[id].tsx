@@ -1,3 +1,4 @@
+import { useQuery } from '@hungerly/app-core';
 import {
   Badge,
   Button,
@@ -31,7 +32,6 @@ import {
   validateSelection,
   type Selection,
 } from '@/features/menu/selection';
-import { useQuery } from '@/hooks/useQuery';
 import { useServices } from '@/services';
 
 /** Dish details and customisation, presented as a modal over the menu. */

@@ -1,7 +1,7 @@
+import { BrandSplash } from '@hungerly/ui';
 import { Redirect } from 'expo-router';
 import { useEffect } from 'react';
 
-import { BrandSplash } from '@/features/auth/components/BrandSplash';
 import { entryRouteFor, useSessionStore } from '@/features/auth/session';
 import { useServices } from '@/services';
 
@@ -25,6 +25,6 @@ export default function Index() {
       .catch(() => markRestored(null));
   }, [auth, isRestored, markRestored]);
 
-  if (!isRestored) return <BrandSplash />;
+  if (!isRestored) return <BrandSplash tagline="Good food, close to home" />;
   return <Redirect href={entryRouteFor({ session, hasSeenOnboarding })} />;
 }

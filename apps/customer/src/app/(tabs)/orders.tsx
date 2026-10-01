@@ -1,9 +1,9 @@
+import { useQuery } from '@hungerly/app-core';
 import { EmptyState, ErrorState, LoadingState, screenGutter, spacing, Text } from '@hungerly/ui';
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useQuery } from '@/hooks/useQuery';
 import { useServices } from '@/services';
 
 /** Order history. Ordering is not built yet, so the list is always empty in this phase. */

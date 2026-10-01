@@ -30,8 +30,8 @@ apps/<app>/
   app.json                  # Expo config (name, scheme, plugins, splash, icons)
   src/app/                  # Expo Router routes only — every file is a screen, _layout files are navigators
   src/features/<feature>/   # components, hooks and pure logic for one feature (cart, menu, auth, …)
-  src/services/             # service contracts (interfaces), errors, provider, mock implementations
-  src/hooks/                # cross-feature hooks (e.g. useQuery)
+  src/services/             # service contracts (interfaces), provider, mock implementations
+  src/hooks/                # app-specific cross-feature hooks
   src/mock/                 # prototype data — imported only by services/mock
 ```
 
@@ -39,9 +39,10 @@ Shared TypeScript packages (in `packages/`):
 
 | Package | Contents |
 |---|---|
-| `@hungerly/ui` | Design system: tokens (colour, typography, spacing, radius, elevation, motion) and accessible React Native components (Text, Button, IconButton, TextField, SearchBar, Chip, Badge, Card, Rating, Price, QuantitySelector, FoodTypeMark, Skeleton, Empty/Error/Loading states, ConfirmDialog, RemoteImage, Avatar, Screen, ScreenHeader, SectionHeader). See [frontend/DESIGN_SYSTEM.md](frontend/DESIGN_SYSTEM.md) |
-| `@hungerly/types` | Client domain types (camelCase, money in minor units) |
-| `@hungerly/utils` | Money arithmetic/formatting (₹, Indian grouping), distance/time/rating formatters, phone helpers |
+| `@hungerly/ui` | Design system: tokens (colour, typography, spacing, radius, elevation, motion) and accessible React Native components (Text, Button, IconButton, TextField, SearchBar, Chip, Badge, Card, Rating, Price, QuantitySelector, FoodTypeMark, Skeleton, Empty/Error/Loading states, ConfirmDialog, RemoteImage, Avatar, Screen, ScreenHeader, SectionHeader, OtpInput, BrandSplash, Switch/SwitchRow, OrderStatusBadge). See [frontend/DESIGN_SYSTEM.md](frontend/DESIGN_SYSTEM.md) |
+| `@hungerly/types` | Client domain types (camelCase, money in minor units), customer and restaurant-partner |
+| `@hungerly/utils` | Money arithmetic/formatting (₹, Indian grouping), distance/time/rating formatters, phone helpers, opening hours ("open now", split shifts, midnight crossing), order state machine and bill invariant |
+| `@hungerly/app-core` | React (non-UI) building blocks: `useQuery` data hook, `ServiceError` codes and messages, `createServicesContext` (the services provider/hook each app instantiates) |
 | `@hungerly/config` | Shared tsconfig and ESLint config |
 | `@hungerly/api-client` (later) | Generated from the OpenAPI contract; implements the apps' service interfaces; handles auth headers, single-flight token refresh, request ids, error mapping |
 

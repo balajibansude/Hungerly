@@ -1,8 +1,12 @@
-import { colors, radius, spacing, Text, typography } from '@hungerly/ui';
 import { forwardRef, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
-interface OtpInputProps {
+import { colors } from '../theme/colors';
+import { radius, spacing } from '../theme/layout';
+import { typography } from '../theme/typography';
+import { Text } from './Text';
+
+export interface OtpInputProps {
   value: string;
   onChange: (value: string) => void;
   length?: number;

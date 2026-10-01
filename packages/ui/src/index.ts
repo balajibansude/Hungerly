@@ -1,6 +1,7 @@
 export * from './theme';
 
 export * from './components/Badge';
+export * from './components/BrandSplash';
 export * from './components/Button';
 export * from './components/Card';
 export * from './components/Chip';
@@ -10,6 +11,8 @@ export * from './components/Icon';
 export * from './components/IconButton';
 export * from './components/Layout';
 export * from './components/Media';
+export * from './components/OrderStatusBadge';
+export * from './components/OtpInput';
 export * from './components/PressableScale';
 export * from './components/Price';
 export * from './components/QuantitySelector';
@@ -18,5 +21,6 @@ export * from './components/ScreenHeader';
 export * from './components/SearchBar';
 export * from './components/Skeleton';
 export * from './components/StateView';
+export * from './components/Switch';
 export * from './components/Text';
 export * from './components/TextField';

@@ -1,4 +1,5 @@
-import { isServiceError } from '../errors';
+import { isServiceError } from '@hungerly/app-core';
+
 import { createMockServices, filterRestaurants, PROTOTYPE_OTP } from './index';
 
 const services = createMockServices({ latencyMs: 0 });

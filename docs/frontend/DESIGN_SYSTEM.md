@@ -70,9 +70,12 @@ Text always renders through `<Text variant color>`; font scaling is allowed up t
 | `IconButton` | Icon-only actions; surface / ghost / overlay / primary | **Requires** `accessibilityLabel`; 44 pt + hitSlop |
 | `PressableScale` | Pressable with spring scale feedback | — |
 | `TextField` | Labelled input with helper/error, leading/trailing slots; label and box focus the input | Label is the accessible name; errors announced politely |
+| `OtpInput` | Boxed one-time-code entry driven by one hidden input | Keeps SMS autofill, paste and screen readers working |
+| `Switch` / `SwitchRow` | Immediate on/off setting (availability, open/closed); row variant has label + description | `Switch` **requires** `accessibilityLabel`; the row is one switch-role element |
 | `SearchBarButton` / `SearchBarInput` | Search entry point / live search field with clear | Role search |
 | `Chip` | Toggleable filter | Toggle role with checked state |
-| `Badge` | Status or offer label (offer, neutral, success, warning, error, dark) | Non-interactive |
+| `Badge` | Status or offer label (offer, neutral, info, success, warning, error, dark) | Non-interactive |
+| `OrderStatusBadge` | Order status pill from the shared `orderStatusMeta` vocabulary (wording per audience: customer / partner; one colour and icon per status) | Non-interactive; label is the status text |
 | `Card` | Bordered surface; pressable cards are a single accessible element | One label per card instead of many focus stops |
 | `Rating` | Star + average (+ count) | Reads "Rated 4.6 out of 5 from 5.5k ratings" |
 | `Price` | Money display, optional struck-through compare-at | Reads "₹149, reduced from ₹199" |
@@ -84,6 +87,7 @@ Text always renders through `<Text variant color>`; font scaling is allowed up t
 | `RemoteImage` | Cached image with placeholder and fallback tile | `decorative` for images that repeat adjacent text |
 | `Avatar` | Initials avatar | Labelled |
 | `Screen`, `ScreenHeader`, `SectionHeader`, `Divider` | Layout primitives with safe areas and gutters | Headers use header role |
+| `BrandSplash` | JS continuation of the native splash (wordmark + app tagline) while the session restores | One "Hungerly is loading" label |
 
 Domain-specific compositions (restaurant card, menu row, cart line, bill summary) live in the app's `src/features`, not in `@hungerly/ui`, until a second app needs them.
 

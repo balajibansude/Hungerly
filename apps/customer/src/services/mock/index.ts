@@ -1,8 +1,8 @@
+import { ServiceError } from '@hungerly/app-core';
 import type { Page, RestaurantSummary, Session, User } from '@hungerly/types';
 
 import { allFoods, categories, defaultAddress, menus, offers, restaurants } from '../../mock';
 import type { RestaurantQuery, Services } from '../contracts';
-import { ServiceError } from '../errors';
 
 /**
  * PROTOTYPE ONLY. In-memory implementations of the service contracts, used until the

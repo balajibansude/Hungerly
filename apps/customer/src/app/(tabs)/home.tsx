@@ -1,3 +1,4 @@
+import { useQuery } from '@hungerly/app-core';
 import {
   Chip,
   ErrorState,
@@ -25,7 +26,6 @@ import { greetingFor, mealPromptFor } from '@/features/home/greeting';
 import { RestaurantCard } from '@/features/restaurants/components/RestaurantCard';
 import { RestaurantCardSkeleton } from '@/features/restaurants/components/RestaurantCardSkeleton';
 import { quickFilters } from '@/features/restaurants/quickFilters';
-import { useQuery } from '@/hooks/useQuery';
 import { useServices } from '@/services';
 
 export default function HomeScreen() {
