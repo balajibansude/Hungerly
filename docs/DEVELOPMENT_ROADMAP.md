@@ -80,8 +80,9 @@ Built in stages on `feature/p2-restaurant-foundation`, against mock services lik
 | 1 | Shared packages: `@hungerly/app-core`; partner types; opening hours, order state machine and bill rules in `@hungerly/utils`; `OtpInput`, `BrandSplash`, `Switch`, `OrderStatusBadge` in `@hungerly/ui` | ✅ customer app unchanged; customer regression passed on physical Android (2026-10-02) |
 | 2 | `apps/restaurant` scaffold, Expo Router shell (Dashboard · Orders · Menu · Insights · More), phone/email OTP login (R1), session + route guards, restaurant profile loading, log out | ✅ verified on physical Android in Expo Go (2026-10-02): splash → login, phone and email OTP, demo restaurant → workspace, new account → onboarding entry; no Metro errors |
 | 3 | Restaurant registration / onboarding (R3): 7 steps — restaurant details → owner/manager → address → contact → operations (weekly hours incl. overnight, prep time, minimum order) → review (edit any section, full re-validation) → completion; one in-memory draft store; `OnboardingService.completeRegistration` with idempotency key; new restaurant + membership in the shared mock state | ✅ verified on physical Android in Expo Go (2026-10-02): new account (98123 45678) registered end to end, review edits, completion → workspace, More shows the new restaurant, log out/in keeps the membership, Masala Junction demo unaffected; no Metro errors |
-| 4 | Orders (R6, R8, R9): order board, order detail, accept with prep time, reject, mark ready | Next |
-| 5–6 | Menu (R11–R13), dashboard, insights, notifications, profile, hours and availability | Planned |
+| 4 | Orders (R8, R9): order board (New · Preparing · Ready for pickup · Completed · Cancelled, with counts, pull to refresh, loading/empty/error states, two columns on tablets), order detail (items, options, notes, stored bill, customer, delivery, history), accept with prep time, reject with reason, mark ready; `OrderService` with version checks on the shared mock state; every move through the shared state machine | ✅ verified on physical Android in Expo Go (2026-10-02): demo restaurant → accept with prep time → preparing → mark ready → ready for pickup; another order rejected → cancelled; board updated; other tabs, log out/in unaffected; no Metro errors. Checks: 222 tests, typecheck, lint, Prettier, restaurant dev + production Android bundles, customer production Android bundle (unchanged) |
+| 5 | Menu management (R11–R13): categories, items, item editor, availability | Next |
+| 6 | Dashboard, insights, notifications, profile, hours and availability; new-order alert (R6) | Planned |
 
 Prototype decisions in stage 3 (to revisit with the backend):
 
@@ -89,6 +90,20 @@ Prototype decisions in stage 3 (to revisit with the backend):
 - The registrant chooses **Owner or Manager** and the chosen role is stored. This conflicts with API_BLUEPRINT §3.5 ("caller becomes owner") and the one-active-owner rule — recorded as **OD-25**.
 - Restaurant email is optional (`restaurants.email` is nullable); phone is required. City/state are not defaulted (pilot city is OD-02).
 - Not collected yet: map location (`restaurants.location` is NN in the schema), KYC documents, split-shift hours (one slot per day in the form).
+
+Prototype limitations in stage 4:
+
+- No live updates: orders do not arrive while the board is open; it refreshes when the screen regains focus and on pull to refresh. No new-order alert or sound (R6), and no auto-cancel of unaccepted orders.
+- No order history paging or date filters (R10) and no "delay" action.
+- In memory only: restarting the app restores the seeded demo orders. Only the demo restaurant (already `active`) has orders; new registrations stay `pending_review` with none.
+- Order messages such as "the customer is told" and "the customer's refund has started" describe what the backend is expected to do; the prototype sends nothing and moves no money (rejecting a paid order only sets `payment_status = refund_pending`).
+
+Open product/business decisions from stage 4 (mock placeholders, **not approved requirements**):
+
+- Tax and fees in the mock orders — 5% tax on food and a ₹5 platform fee — are placeholders; tax rules are OD-04 and the fee model OD-03.
+- Cancellation and rejection wording ("Rejected: item out of stock", "Cancelled by the customer", the mock reason "customer changed mind") is prototype copy to be confirmed.
+- Accept-time prep choices reuse the registration options (10–60 min) while the API allows 5–90; the offered choices need a product decision.
+- Still open from earlier stages: OD-25 (registrant role), per-item prep times, code repeated between the customer and restaurant apps.
 
 ### Phase 1B — Platform foundation
 

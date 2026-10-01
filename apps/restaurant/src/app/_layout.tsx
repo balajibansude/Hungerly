@@ -69,6 +69,7 @@ export default function RootLayout() {
                 options={{ animation: 'fade', gestureEnabled: false }}
               />
               <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+              <Stack.Screen name="orders/[id]" />
             </Stack.Protected>
           </Stack>
         </ServicesProvider>

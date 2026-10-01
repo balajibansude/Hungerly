@@ -1,14 +1,30 @@
 import { ServiceError } from '@hungerly/app-core';
 import type {
   Id,
+  OrderRejectReason,
+  OrderStatus,
+  PartnerOrder,
   PartnerRestaurant,
   PartnerSession,
   RestaurantMembership,
   StaffUser,
 } from '@hungerly/types';
-import { money, normalizeEmail, normalizePincode } from '@hungerly/utils';
+import {
+  canTransition,
+  isValidPrepMinutes,
+  money,
+  normalizeEmail,
+  normalizePincode,
+  PREP_MINUTES_RANGE,
+} from '@hungerly/utils';
 
-import { DEMO_OWNER_PHONE_E164, demoOwner, MASALA_JUNCTION_ID, masalaJunction } from '../../mock';
+import {
+  DEMO_OWNER_PHONE_E164,
+  demoOwner,
+  MASALA_JUNCTION_ID,
+  masalaJunction,
+  masalaJunctionOrders,
+} from '../../mock';
 import type { LoginIdentifier, RestaurantRegistration, Services } from '../contracts';
 import { validateRegistration } from '../registrationRules';
 
@@ -20,6 +36,8 @@ import { validateRegistration } from '../registrationRules';
 export interface MockOptions {
   /** Simulated network latency so loading states are visible. Use 0 in tests. */
   latencyMs?: number;
+  /** Clock for seeded order times and order actions. Tests pass a fixed time. */
+  now?: () => Date;
 }
 
 /** The only code the prototype accepts. Shown on the verify screen as a hint. */
@@ -43,10 +61,11 @@ interface MockState {
   challenges: Map<string, LoginIdentifier>;
   /** Completed registrations by `${userId}:${idempotencyKey}` → restaurant id. */
   registrations: Map<string, Id>;
+  orders: Map<Id, PartnerOrder>;
   session: PartnerSession | null;
 }
 
-function createState(): MockState {
+function createState(now: Date): MockState {
   return {
     users: new Map([[demoOwner.id, demoOwner]]),
     userIdByIdentity: new Map([[`phone:${DEMO_PHONE_E164}`, demoOwner.id]]),
@@ -59,8 +78,36 @@ function createState(): MockState {
     restaurants: new Map([[MASALA_JUNCTION_ID, masalaJunction]]),
     challenges: new Map(),
     registrations: new Map(),
+    // Only the approved demo restaurant has orders; new registrations are still in review.
+    orders: new Map(masalaJunctionOrders(now).map((order) => [order.id, order])),
     session: null,
   };
+}
+
+const REJECT_REASONS: readonly OrderRejectReason[] = [
+  'item_out_of_stock',
+  'too_busy',
+  'closing',
+  'other',
+];
+
+/** Why the restaurant cannot act on an order in this status (`order.invalid_transition`). */
+function invalidTransitionMessage(status: OrderStatus): string {
+  switch (status) {
+    case 'placed':
+      return 'Accept this order before marking it ready.';
+    case 'preparing':
+      return 'This order was already accepted.';
+    case 'ready_for_pickup':
+      return 'This order is already ready for pickup.';
+    case 'picked_up':
+    case 'delivered':
+      return 'This order has already left the kitchen.';
+    case 'cancelled':
+      return 'This order was already cancelled.';
+    case 'pending_payment':
+      return 'This order is still waiting for payment.';
+  }
 }
 
 function slugify(name: string): string {
@@ -102,8 +149,11 @@ function restaurantFrom(id: Id, registration: RestaurantRegistration): PartnerRe
   };
 }
 
-export function createMockServices({ latencyMs = 350 }: MockOptions = {}): Services {
-  const state = createState();
+export function createMockServices({
+  latencyMs = 350,
+  now = () => new Date(),
+}: MockOptions = {}): Services {
+  const state = createState(now());
   let nextId = 1;
 
   const wait = <T>(value: () => T): Promise<T> =>
@@ -132,6 +182,50 @@ export function createMockServices({ latencyMs = 350 }: MockOptions = {}): Servi
     state.users.set(user.id, user);
     state.userIdByIdentity.set(key, user.id);
     return user;
+  };
+
+  /** Like the API: an order at a restaurant you do not work at does not exist for you. */
+  const findOrder = (restaurantId: Id, orderId: Id): PartnerOrder => {
+    const isMember = state.session?.memberships.some((m) => m.restaurantId === restaurantId);
+    const order = state.orders.get(orderId);
+    if (!isMember || !order || order.restaurantId !== restaurantId) {
+      throw new ServiceError('not_found', 'This order is no longer available.');
+    }
+    return order;
+  };
+
+  /**
+   * Applies one restaurant transition through the shared state machine: rejects moves it
+   * does not allow, then stale versions (If-Match), and records the change in the timeline.
+   */
+  const transition = (
+    order: PartnerOrder,
+    to: OrderStatus,
+    expectedVersion: number,
+    changes: Partial<PartnerOrder>,
+  ): PartnerOrder => {
+    if (!canTransition(order.status, to, 'restaurant')) {
+      throw new ServiceError('order.invalid_transition', invalidTransitionMessage(order.status));
+    }
+    if (order.version !== expectedVersion) {
+      throw new ServiceError(
+        'order.version_conflict',
+        'This order changed since you opened it. Showing the latest.',
+      );
+    }
+    const at = now().toISOString();
+    const updated: PartnerOrder = {
+      ...order,
+      ...changes,
+      status: to,
+      timeline: [
+        ...order.timeline,
+        { fromStatus: order.status, toStatus: to, actor: 'restaurant', at },
+      ],
+      version: order.version + 1,
+    };
+    state.orders.set(updated.id, updated);
+    return updated;
   };
 
   const sessionFor = (user: StaffUser): PartnerSession => ({
@@ -207,6 +301,55 @@ export function createMockServices({ latencyMs = 350 }: MockOptions = {}): Servi
           state.session = sessionFor(user);
           return { restaurant, session: state.session };
         }),
+    },
+
+    orders: {
+      list: (restaurantId) =>
+        wait(() => {
+          const isMember = state.session?.memberships.some((m) => m.restaurantId === restaurantId);
+          if (!isMember)
+            throw new ServiceError('not_found', 'This restaurant is not available to you.');
+          return [...state.orders.values()]
+            .filter((order) => order.restaurantId === restaurantId)
+            .sort((a, b) => b.placedAt.localeCompare(a.placedAt));
+        }),
+      get: (restaurantId, orderId) => wait(() => findOrder(restaurantId, orderId)),
+      accept: (restaurantId, orderId, { prepMinutes, expectedVersion }) =>
+        wait(() => {
+          if (!isValidPrepMinutes(prepMinutes)) {
+            throw new ServiceError(
+              'validation',
+              `Choose a preparation time between ${PREP_MINUTES_RANGE.min} and ${PREP_MINUTES_RANGE.max} minutes.`,
+            );
+          }
+          const order = findOrder(restaurantId, orderId);
+          const acceptedAt = now();
+          return transition(order, 'preparing', expectedVersion, {
+            acceptedAt: acceptedAt.toISOString(),
+            prepMinutes,
+            estimatedReadyAt: new Date(acceptedAt.getTime() + prepMinutes * 60_000).toISOString(),
+          });
+        }),
+      reject: (restaurantId, orderId, { reason, expectedVersion }) =>
+        wait(() => {
+          if (!REJECT_REASONS.includes(reason)) {
+            throw new ServiceError('validation', 'Choose why you are rejecting this order.');
+          }
+          const order = findOrder(restaurantId, orderId);
+          return transition(order, 'cancelled', expectedVersion, {
+            cancelledAt: now().toISOString(),
+            cancelledBy: 'restaurant',
+            cancellationReason: reason,
+            // API §4.17: rejecting a paid order starts a refund; unpaid COD needs none.
+            paymentStatus: order.paymentStatus === 'paid' ? 'refund_pending' : 'not_applicable',
+          });
+        }),
+      markReady: (restaurantId, orderId, { expectedVersion }) =>
+        wait(() =>
+          transition(findOrder(restaurantId, orderId), 'ready_for_pickup', expectedVersion, {
+            readyAt: now().toISOString(),
+          }),
+        ),
     },
 
     restaurants: {

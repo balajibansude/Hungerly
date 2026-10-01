@@ -1,5 +1,7 @@
 import type {
   Id,
+  OrderRejectReason,
+  PartnerOrder,
   PartnerRestaurant,
   PartnerSession,
   RestaurantAddress,
@@ -17,7 +19,7 @@ import type {
  * technology can change without touching screens. Implementations throw `ServiceError`
  * (@hungerly/app-core) for expected failures.
  *
- * Covers authentication, registration and the restaurant profile. Orders, menu,
+ * Covers authentication, registration, the restaurant profile and orders. Menu,
  * notifications and insights services are added with their phases.
  */
 
@@ -86,8 +88,40 @@ export interface OnboardingService {
   ): Promise<RegistrationResult>;
 }
 
+/**
+ * Restaurant order handling (`/partner/restaurants/{rid}/orders`, API_BLUEPRINT §3.7).
+ * Every action names the order `version` the screen was showing (the API's `If-Match`),
+ * so acting on stale data fails with `order.version_conflict` instead of silently
+ * overwriting a newer change. Moves the state machine does not allow for the restaurant
+ * fail with `order.invalid_transition`.
+ */
+export interface OrderService {
+  /** The restaurant's orders, newest first (board and history; prototype: no paging). */
+  list(restaurantId: Id): Promise<PartnerOrder[]>;
+  get(restaurantId: Id, orderId: Id): Promise<PartnerOrder>;
+  /** `placed → preparing` with a prep estimate of 5–90 minutes (§4.16). */
+  accept(
+    restaurantId: Id,
+    orderId: Id,
+    input: { prepMinutes: number; expectedVersion: number },
+  ): Promise<PartnerOrder>;
+  /** `placed → cancelled` by the restaurant, with a reason code (§4.17). */
+  reject(
+    restaurantId: Id,
+    orderId: Id,
+    input: { reason: OrderRejectReason; expectedVersion: number },
+  ): Promise<PartnerOrder>;
+  /** `preparing → ready_for_pickup`. */
+  markReady(
+    restaurantId: Id,
+    orderId: Id,
+    input: { expectedVersion: number },
+  ): Promise<PartnerOrder>;
+}
+
 export interface Services {
   auth: AuthService;
   onboarding: OnboardingService;
+  orders: OrderService;
   restaurants: RestaurantService;
 }
