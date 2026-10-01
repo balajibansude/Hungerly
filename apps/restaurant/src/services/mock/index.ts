@@ -6,10 +6,11 @@ import type {
   RestaurantMembership,
   StaffUser,
 } from '@hungerly/types';
-import { normalizeEmail } from '@hungerly/utils';
+import { money, normalizeEmail, normalizePincode } from '@hungerly/utils';
 
 import { DEMO_OWNER_PHONE_E164, demoOwner, MASALA_JUNCTION_ID, masalaJunction } from '../../mock';
-import type { LoginIdentifier, Services } from '../contracts';
+import type { LoginIdentifier, RestaurantRegistration, Services } from '../contracts';
+import { validateRegistration } from '../registrationRules';
 
 /**
  * PROTOTYPE ONLY. In-memory implementations of the service contracts, used until the
@@ -35,16 +36,20 @@ function identityKey(identifier: LoginIdentifier): string {
 }
 
 interface MockState {
-  usersByIdentity: Map<string, StaffUser>;
+  users: Map<Id, StaffUser>;
+  userIdByIdentity: Map<string, Id>;
   membershipsByUser: Map<Id, RestaurantMembership[]>;
   restaurants: Map<Id, PartnerRestaurant>;
   challenges: Map<string, LoginIdentifier>;
+  /** Completed registrations by `${userId}:${idempotencyKey}` → restaurant id. */
+  registrations: Map<string, Id>;
   session: PartnerSession | null;
 }
 
 function createState(): MockState {
   return {
-    usersByIdentity: new Map([[`phone:${DEMO_PHONE_E164}`, demoOwner]]),
+    users: new Map([[demoOwner.id, demoOwner]]),
+    userIdByIdentity: new Map([[`phone:${DEMO_PHONE_E164}`, demoOwner.id]]),
     membershipsByUser: new Map([
       [
         demoOwner.id,
@@ -53,7 +58,47 @@ function createState(): MockState {
     ]),
     restaurants: new Map([[MASALA_JUNCTION_ID, masalaJunction]]),
     challenges: new Map(),
+    registrations: new Map(),
     session: null,
+  };
+}
+
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/** The restaurant a registration creates: submitted for review, offline until approved. */
+function restaurantFrom(id: Id, registration: RestaurantRegistration): PartnerRestaurant {
+  const { address } = registration;
+  const name = registration.name.trim();
+  return {
+    id,
+    slug: `${slugify(name) || 'restaurant'}-${id}`,
+    name,
+    description: '',
+    phoneE164: registration.phoneE164,
+    email: registration.email === null ? null : normalizeEmail(registration.email),
+    address: {
+      line1: address.line1.trim(),
+      ...(address.line2?.trim() ? { line2: address.line2.trim() } : {}),
+      locality: address.locality.trim(),
+      city: address.city.trim(),
+      state: address.state.trim(),
+      postalCode: normalizePincode(address.postalCode),
+    },
+    cuisines: [...registration.cuisines],
+    foodType: registration.foodType,
+    // BLUEPRINT §26: a submitted registration waits for admin review before going live.
+    status: 'pending_review',
+    isAcceptingOrders: false,
+    avgPrepMinutes: registration.avgPrepMinutes,
+    minimumOrder: registration.minimumOrder,
+    packagingFee: money(0),
+    hours: registration.hours.map((slot) => ({ ...slot })),
+    rating: { average: 0, count: 0 },
   };
 }
 
@@ -75,7 +120,8 @@ export function createMockServices({ latencyMs = 350 }: MockOptions = {}): Servi
   /** Finds the user for an identity, creating a new one (no restaurants yet) on first login. */
   const userFor = (identifier: LoginIdentifier): StaffUser => {
     const key = identityKey(identifier);
-    const existing = state.usersByIdentity.get(key);
+    const existingId = state.userIdByIdentity.get(key);
+    const existing = existingId ? state.users.get(existingId) : undefined;
     if (existing) return existing;
     const user: StaffUser = {
       id: `usr-${nextId++}`,
@@ -83,7 +129,8 @@ export function createMockServices({ latencyMs = 350 }: MockOptions = {}): Servi
       phoneE164: identifier.channel === 'phone' ? identifier.phoneE164 : null,
       email: identifier.channel === 'email' ? normalizeEmail(identifier.email) : null,
     };
-    state.usersByIdentity.set(key, user);
+    state.users.set(user.id, user);
+    state.userIdByIdentity.set(key, user.id);
     return user;
   };
 
@@ -120,6 +167,45 @@ export function createMockServices({ latencyMs = 350 }: MockOptions = {}): Servi
       signOut: () =>
         wait(() => {
           state.session = null;
+        }),
+    },
+
+    onboarding: {
+      completeRegistration: (registration, idempotencyKey) =>
+        wait(() => {
+          const session = state.session;
+          if (!session) throw new ServiceError('validation', 'Please log in again.');
+
+          // A retry of a registration that already succeeded returns the same restaurant.
+          const registrationKey = `${session.user.id}:${idempotencyKey}`;
+          const existingId = state.registrations.get(registrationKey);
+          const existing = existingId ? state.restaurants.get(existingId) : undefined;
+          if (existing) return { restaurant: existing, session };
+
+          const [issue] = validateRegistration(registration);
+          if (issue) throw new ServiceError('validation', issue.message);
+
+          const restaurant = restaurantFrom(`rst-${nextId++}`, registration);
+          state.restaurants.set(restaurant.id, restaurant);
+
+          const membership: RestaurantMembership = {
+            restaurantId: restaurant.id,
+            restaurantName: restaurant.name,
+            role: registration.registrant.role,
+          };
+          const memberships = [...(state.membershipsByUser.get(session.user.id) ?? []), membership];
+          state.membershipsByUser.set(session.user.id, memberships);
+
+          // The registrant's name is the only identity field registration may change.
+          const user: StaffUser = {
+            ...session.user,
+            fullName: registration.registrant.fullName.trim(),
+          };
+          state.users.set(user.id, user);
+
+          state.registrations.set(registrationKey, restaurant.id);
+          state.session = sessionFor(user);
+          return { restaurant, session: state.session };
         }),
     },
 

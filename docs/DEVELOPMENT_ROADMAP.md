@@ -79,8 +79,16 @@ Built in stages on `feature/p2-restaurant-foundation`, against mock services lik
 |---|---|---|
 | 1 | Shared packages: `@hungerly/app-core`; partner types; opening hours, order state machine and bill rules in `@hungerly/utils`; `OtpInput`, `BrandSplash`, `Switch`, `OrderStatusBadge` in `@hungerly/ui` | ✅ customer app unchanged; customer regression passed on physical Android (2026-10-02) |
 | 2 | `apps/restaurant` scaffold, Expo Router shell (Dashboard · Orders · Menu · Insights · More), phone/email OTP login (R1), session + route guards, restaurant profile loading, log out | ✅ verified on physical Android in Expo Go (2026-10-02): splash → login, phone and email OTP, demo restaurant → workspace, new account → onboarding entry; no Metro errors |
-| 3 | Restaurant registration / onboarding (R3) | Next |
-| 4–6 | Orders (R6, R8, R9), menu (R11–R13), dashboard, insights, notifications, profile, hours and availability | Planned |
+| 3 | Restaurant registration / onboarding (R3): 7 steps — restaurant details → owner/manager → address → contact → operations (weekly hours incl. overnight, prep time, minimum order) → review (edit any section, full re-validation) → completion; one in-memory draft store; `OnboardingService.completeRegistration` with idempotency key; new restaurant + membership in the shared mock state | ✅ verified on physical Android in Expo Go (2026-10-02): new account (98123 45678) registered end to end, review edits, completion → workspace, More shows the new restaurant, log out/in keeps the membership, Masala Junction demo unaffected; no Metro errors |
+| 4 | Orders (R6, R8, R9): order board, order detail, accept with prep time, reject, mark ready | Next |
+| 5–6 | Menu (R11–R13), dashboard, insights, notifications, profile, hours and availability | Planned |
+
+Prototype decisions in stage 3 (to revisit with the backend):
+
+- A completed registration is **`pending_review`** with `isAcceptingOrders = false` (BLUEPRINT §26); nothing approves it in the prototype.
+- The registrant chooses **Owner or Manager** and the chosen role is stored. This conflicts with API_BLUEPRINT §3.5 ("caller becomes owner") and the one-active-owner rule — recorded as **OD-25**.
+- Restaurant email is optional (`restaurants.email` is nullable); phone is required. City/state are not defaulted (pilot city is OD-02).
+- Not collected yet: map location (`restaurants.location` is NN in the schema), KYC documents, split-shift hours (one slot per day in the form).
 
 ### Phase 1B — Platform foundation
 

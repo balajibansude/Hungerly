@@ -95,3 +95,77 @@ export function canAcceptOrders(
 ): boolean {
   return orderIntakeBlocker(restaurant, now, utcOffsetMinutes) === null;
 }
+
+/** "11:30" → "11:30 am", "00:30" → "12:30 am", "12:00" → "12:00 pm". */
+export function formatLocalTime12h(value: LocalTime): string {
+  const minutes = parseLocalTime(value);
+  const h24 = Math.floor(minutes / 60);
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${h12}:${String(minutes % 60).padStart(2, '0')} ${h24 < 12 ? 'am' : 'pm'}`;
+}
+
+/** True when the slot closes after midnight, i.e. its closing time is earlier than its opening. */
+export function crossesMidnight(slot: Pick<OpeningHoursSlot, 'opensAt' | 'closesAt'>): boolean {
+  return parseLocalTime(slot.closesAt) < parseLocalTime(slot.opensAt);
+}
+
+export type WeeklyHoursIssue =
+  | { code: 'no_open_days' }
+  | { code: 'invalid_time'; dayOfWeek: DayOfWeek }
+  | { code: 'same_time'; dayOfWeek: DayOfWeek }
+  | { code: 'overlap'; dayOfWeek: DayOfWeek; withDayOfWeek: DayOfWeek };
+
+const MINUTES_PER_WEEK = 7 * MINUTES_PER_DAY;
+
+/**
+ * Checks a weekly schedule entered by a person: at least one slot, valid "HH:MM" times,
+ * open ≠ close (24-hour slots are not offered in forms), and no two slots overlapping —
+ * including a late slot spilling past midnight into the next day's opening (Sunday wraps
+ * to Monday). Returns the first issue in weekday order, or `null` if the schedule is valid.
+ */
+export function validateWeeklyHours(hours: OpeningHoursSlot[]): WeeklyHoursIssue | null {
+  if (hours.length === 0) return { code: 'no_open_days' };
+
+  const sorted = [...hours].sort((a, b) => a.dayOfWeek - b.dayOfWeek);
+  const intervals: { start: number; end: number; dayOfWeek: DayOfWeek }[] = [];
+  for (const slot of sorted) {
+    let opens: number;
+    let closes: number;
+    try {
+      opens = parseLocalTime(slot.opensAt);
+      closes = parseLocalTime(slot.closesAt);
+    } catch {
+      return { code: 'invalid_time', dayOfWeek: slot.dayOfWeek };
+    }
+    if (opens === closes) return { code: 'same_time', dayOfWeek: slot.dayOfWeek };
+    const start = slot.dayOfWeek * MINUTES_PER_DAY + opens;
+    const length = closes > opens ? closes - opens : MINUTES_PER_DAY - opens + closes;
+    const end = start + length;
+    // A Sunday-night slot continues into Monday morning at the start of the week.
+    if (end > MINUTES_PER_WEEK) {
+      intervals.push({ start, end: MINUTES_PER_WEEK, dayOfWeek: slot.dayOfWeek });
+      intervals.push({ start: 0, end: end - MINUTES_PER_WEEK, dayOfWeek: slot.dayOfWeek });
+    } else {
+      intervals.push({ start, end, dayOfWeek: slot.dayOfWeek });
+    }
+  }
+
+  // Sweep in start order, remembering the interval that reaches furthest so far: any
+  // interval starting before that end overlaps it, even if they are not neighbours.
+  const byStart = [...intervals].sort((a, b) => a.start - b.start);
+  let furthest = byStart[0];
+  let issue: { code: 'overlap'; dayOfWeek: DayOfWeek; withDayOfWeek: DayOfWeek } | null = null;
+  for (const current of byStart.slice(1)) {
+    if (furthest && current.start < furthest.end) {
+      const [first, second] = [furthest.dayOfWeek, current.dayOfWeek].sort((a, b) => a - b) as [
+        DayOfWeek,
+        DayOfWeek,
+      ];
+      if (!issue || first < issue.dayOfWeek) {
+        issue = { code: 'overlap', dayOfWeek: first, withDayOfWeek: second };
+      }
+    }
+    if (!furthest || current.end > furthest.end) furthest = current;
+  }
+  return issue;
+}

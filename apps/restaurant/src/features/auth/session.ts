@@ -49,11 +49,20 @@ export function routeAccessFor(session: PartnerSession | null): RouteAccess {
   };
 }
 
-export type EntryRoute = '/login' | '/welcome' | '/dashboard';
+export type EntryRoute = '/login' | '/welcome' | '/registration-complete' | '/dashboard';
+
+export interface EntryOptions {
+  /** A registration just succeeded and its completion screen has not been dismissed. */
+  registrationCompleted?: boolean;
+}
 
 /** Where the app should go for the current session. Pure, so it is easy to test. */
-export function entryRouteFor(session: PartnerSession | null): EntryRoute {
+export function entryRouteFor(
+  session: PartnerSession | null,
+  { registrationCompleted = false }: EntryOptions = {},
+): EntryRoute {
   const access = routeAccessFor(session);
   if (access.signedOut) return '/login';
-  return access.needsOnboarding ? '/welcome' : '/dashboard';
+  if (access.needsOnboarding) return '/welcome';
+  return registrationCompleted ? '/registration-complete' : '/dashboard';
 }

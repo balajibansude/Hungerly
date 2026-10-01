@@ -38,11 +38,18 @@ export function intakeStatusFor(
         tone: 'warning',
       };
     case 'not_active':
-      return {
-        label: lifecycleLabels[restaurant.status],
-        detail: 'Hungerly must approve the restaurant before it can take orders',
-        tone: 'error',
-      };
+      // Waiting for review is a normal step, not a problem; other inactive states are.
+      return restaurant.status === 'pending_review'
+        ? {
+            label: lifecycleLabels.pending_review,
+            detail: 'Hungerly must approve the restaurant before it can take orders',
+            tone: 'warning',
+          }
+        : {
+            label: lifecycleLabels[restaurant.status],
+            detail: 'The restaurant can’t take orders. Contact Hungerly partner support.',
+            tone: 'error',
+          };
   }
 }
 

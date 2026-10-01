@@ -63,6 +63,11 @@ export default function RootLayout() {
             </Stack.Protected>
 
             <Stack.Protected guard={access.hasRestaurant}>
+              {/* Shown once after registering; outside onboarding, so back can't return there. */}
+              <Stack.Screen
+                name="registration-complete"
+                options={{ animation: 'fade', gestureEnabled: false }}
+              />
               <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
             </Stack.Protected>
           </Stack>

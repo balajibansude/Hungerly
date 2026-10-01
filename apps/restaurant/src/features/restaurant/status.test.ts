@@ -29,7 +29,16 @@ describe('intakeStatusFor', () => {
   it('explains a restaurant that is not active yet', () => {
     expect(
       intakeStatusFor({ status: 'pending_review', isAcceptingOrders: true, hours }, lunch),
-    ).toMatchObject({ label: 'In review', tone: 'error' });
+    ).toMatchObject({ label: 'In review', tone: 'warning' });
+  });
+
+  it('marks suspended or rejected restaurants as a problem', () => {
+    expect(
+      intakeStatusFor({ status: 'suspended', isAcceptingOrders: true, hours }, lunch),
+    ).toMatchObject({ label: 'Suspended', tone: 'error' });
+    expect(
+      intakeStatusFor({ status: 'rejected', isAcceptingOrders: false, hours }, lunch),
+    ).toMatchObject({ label: 'Needs changes', tone: 'error' });
   });
 });
 

@@ -1,5 +1,4 @@
 import {
-  Badge,
   Button,
   Card,
   colors,
@@ -13,10 +12,13 @@ import {
   type IconName,
 } from '@hungerly/ui';
 import { formatE164India } from '@hungerly/utils';
+import { router } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { useSessionStore } from '@/features/auth/session';
 import { useSignOut } from '@/features/auth/useSignOut';
+import { useOnboardingStore } from '@/features/onboarding/draft';
+import { stepByKey } from '@/features/onboarding/steps';
 
 /** What registration will ask for (R3), so owners can get it ready. */
 const steps: { icon: IconName; title: string; detail: string }[] = [
@@ -35,6 +37,15 @@ const steps: { icon: IconName; title: string; detail: string }[] = [
 export default function WelcomeScreen() {
   const user = useSessionStore((s) => s.session?.user);
   const { signOut, signingOut } = useSignOut();
+  const startRegistration = useOnboardingStore((s) => s.start);
+  const hasDraft = useOnboardingStore((s) => user !== undefined && s.ownerUserId === user.id);
+
+  const begin = () => {
+    if (!user) return;
+    // Resumes this person's draft from this session, or starts a clean one.
+    startRegistration(user);
+    router.push(stepByKey('restaurant').href);
+  };
   const signedInAs = user?.phoneE164 ? formatE164India(user.phoneE164) : (user?.email ?? '');
 
   return (
@@ -74,13 +85,15 @@ export default function WelcomeScreen() {
           ))}
         </Card>
 
-        <Badge
-          tone="warning"
-          icon="flask-outline"
-          label="Prototype: registration steps arrive in the next build"
-        />
-
         <View style={styles.spacer} />
+
+        <Button
+          label={hasDraft ? 'Continue registration' : 'Start registration'}
+          icon="arrow-forward"
+          iconPosition="end"
+          onPress={begin}
+          fullWidth
+        />
 
         <Text variant="bodySmall" color="textTertiary" align="center">
           Signed in as {signedInAs}

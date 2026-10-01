@@ -3,18 +3,20 @@ import { Redirect } from 'expo-router';
 import { useEffect } from 'react';
 
 import { entryRouteFor, useSessionStore } from '@/features/auth/session';
+import { useOnboardingStore } from '@/features/onboarding/draft';
 import { useServices } from '@/services';
 
 /**
  * Splash + routing gate. Shows the brand while the saved session is checked, then sends
- * the user to login, onboarding or the restaurant workspace. Every auth transition
- * returns here so routing decisions live in one place.
+ * the user to login, onboarding, the registration-complete screen or the workspace.
+ * Every auth and registration transition returns here so routing lives in one place.
  */
 export default function Index() {
   const { auth } = useServices();
   const isRestored = useSessionStore((s) => s.isRestored);
   const session = useSessionStore((s) => s.session);
   const markRestored = useSessionStore((s) => s.markRestored);
+  const registrationCompleted = useOnboardingStore((s) => s.completed !== null);
 
   useEffect(() => {
     if (isRestored) return;
@@ -25,5 +27,5 @@ export default function Index() {
   }, [auth, isRestored, markRestored]);
 
   if (!isRestored) return <BrandSplash tagline="Partner · run your restaurant" />;
-  return <Redirect href={entryRouteFor(session)} />;
+  return <Redirect href={entryRouteFor(session, { registrationCompleted })} />;
 }

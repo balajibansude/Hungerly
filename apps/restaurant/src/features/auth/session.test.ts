@@ -63,3 +63,39 @@ describe('session store', () => {
     expect(store.getState().isRestored).toBe(true);
   });
 });
+
+describe('routing around registration', () => {
+  const registered: PartnerSession = {
+    user,
+    memberships: [{ restaurantId: 'rst-9', restaurantName: 'Spice Garden', role: 'owner' }],
+  };
+
+  it('sends a new account without a restaurant into onboarding, even with a stale flag', () => {
+    expect(entryRouteFor(newOwner)).toBe('/welcome');
+    expect(entryRouteFor(newOwner, { registrationCompleted: true })).toBe('/welcome');
+  });
+
+  it('shows the completion screen once, then the workspace', () => {
+    expect(entryRouteFor(registered, { registrationCompleted: true })).toBe(
+      '/registration-complete',
+    );
+    expect(entryRouteFor(registered)).toBe('/dashboard');
+  });
+
+  it('still opens the existing demo restaurant directly', () => {
+    expect(entryRouteFor(owner, { registrationCompleted: false })).toBe('/dashboard');
+  });
+
+  it('closes onboarding once the membership exists, so back cannot return to it', () => {
+    expect(routeAccessFor(newOwner).needsOnboarding).toBe(true);
+    expect(routeAccessFor(registered)).toEqual({
+      signedOut: false,
+      needsOnboarding: false,
+      hasRestaurant: true,
+    });
+  });
+
+  it('sends a signed-out user to login', () => {
+    expect(entryRouteFor(null, { registrationCompleted: true })).toBe('/login');
+  });
+});
