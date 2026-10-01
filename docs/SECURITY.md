@@ -192,7 +192,7 @@ Principle of least privilege: admins receive the narrowest sub-role; role change
 - **Network:** database and Redis on private networking only, no public endpoints; API reachable only through the load balancer/TLS; admin tools access through the platform with MFA.
 - **Access:** cloud accounts with MFA mandatory; least-privilege IAM roles; separate staging and production projects/accounts; no shared personal credentials; break-glass procedure documented.
 - **Containers:** minimal base images (slim/distroless), non-root user, read-only filesystem where possible, image vulnerability scanning in CI, pinned base image digests, regular rebuilds for patches.
-- **Dependencies:** lockfiles committed (`uv.lock`, `pubspec.lock`, `pnpm-lock.yaml`); Dependabot/Renovate updates; dependency review on PRs; licences checked.
+- **Dependencies:** lockfiles committed (`uv.lock` for the backend, `pnpm-lock.yaml` for the TypeScript apps and packages); Dependabot/Renovate updates; dependency review on PRs; licences checked.
 - **CI/CD:** GitHub Actions with least-privilege tokens (`permissions:` set per workflow), pinned third-party actions by commit SHA, OIDC to cloud instead of long-lived keys where supported, protected environments with required reviewers for production.
 - **Repository:** branch protection on `main`, `balaji`, `teammate` (no force push, no deletion); required reviews and status checks for `main`; signed commits recommended.
 - **Data at rest:** managed DB and storage encryption enabled; backups encrypted; backup access restricted.
