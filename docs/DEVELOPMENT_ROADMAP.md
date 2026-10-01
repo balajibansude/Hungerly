@@ -1,6 +1,6 @@
 # Hungerly — Development Roadmap
 
-> Status: **Draft v0.2.** Phase 0 complete (pending approval); Phase 1A (frontend foundation + customer app prototype) implemented on `feature/p1-customer-foundation`. No later phase starts until the blueprint is approved and the previous phase's acceptance criteria are met (phases may overlap where dependencies allow, as noted).
+> Status: **Draft v0.2.** Phase 0 complete (pending approval); Phase 1A (frontend foundation + customer app prototype) implemented on `feature/p1-customer-foundation`; restaurant app prototype in progress on `feature/p2-restaurant-foundation`. No later phase starts until the blueprint is approved and the previous phase's acceptance criteria are met (phases may overlap where dependencies allow, as noted).
 
 Related: [BLUEPRINT.md](BLUEPRINT.md) §59–§61 · [FRONTEND_BLUEPRINT.md](FRONTEND_BLUEPRINT.md) · [API_BLUEPRINT.md](API_BLUEPRINT.md)
 
@@ -69,7 +69,18 @@ Split into **1A — frontend foundation** (done) and **1B — platform foundatio
 
 **Acceptance criteria (met):** `pnpm lint`, `pnpm typecheck`, `pnpm test` pass; `expo-doctor` passes; Android and iOS production bundles build with `expo export`; full journey exercised in a rendered build with no console errors.
 
-**Not verified yet:** running on physical Android/iOS devices (requires a device/emulator or EAS build).
+**Device verification:** the full customer journey was smoke-tested on a physical Android phone in Expo Go (2026-10-02, after the shared-package extraction) with no visible issues and no Metro errors. Not yet verified: iOS devices and an Android development build (Phase 1B).
+
+### Restaurant app prototype (frontend ahead on mocks) — in progress
+
+Built in stages on `feature/p2-restaurant-foundation`, against mock services like the customer app (screen specs: [FRONTEND_BLUEPRINT.md §4](FRONTEND_BLUEPRINT.md#4-restaurant-partner-application-screens)). Order statuses follow the database state machine — no separate "accepted" status.
+
+| Stage | Scope | Status |
+|---|---|---|
+| 1 | Shared packages: `@hungerly/app-core`; partner types; opening hours, order state machine and bill rules in `@hungerly/utils`; `OtpInput`, `BrandSplash`, `Switch`, `OrderStatusBadge` in `@hungerly/ui` | ✅ customer app unchanged; customer regression passed on physical Android (2026-10-02) |
+| 2 | `apps/restaurant` scaffold, Expo Router shell (Dashboard · Orders · Menu · Insights · More), phone/email OTP login (R1), session + route guards, restaurant profile loading, log out | ✅ verified on physical Android in Expo Go (2026-10-02): splash → login, phone and email OTP, demo restaurant → workspace, new account → onboarding entry; no Metro errors |
+| 3 | Restaurant registration / onboarding (R3) | Next |
+| 4–6 | Orders (R6, R8, R9), menu (R11–R13), dashboard, insights, notifications, profile, hours and availability | Planned |
 
 ### Phase 1B — Platform foundation
 

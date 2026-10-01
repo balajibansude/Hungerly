@@ -144,7 +144,7 @@ npx expo export --platform android --platform ios   # production bundle smoke bu
 npx expo install <pkg>    # add dependencies at SDK-compatible versions (never plain pnpm add for Expo/RN packages)
 ```
 
-Running on a device: the prototype only uses modules that ship with Expo SDK 57 (`expo-doctor` confirms versions match), so it is expected to open in Expo Go — this has **not yet been verified on a physical device**. Once native modules outside Expo Go are added (location, payments), use a development build (`npx expo run:android` or EAS Build).
+Running on a device: the prototype only uses modules that ship with Expo SDK 57 (`expo-doctor` confirms versions match), so it opens in Expo Go — **verified on a physical Android phone** (see §8). Once native modules outside Expo Go are added (location, payments), use a development build (`npx expo run:android` or EAS Build).
 
 ## 8. Quality status
 
@@ -152,4 +152,5 @@ Running on a device: the prototype only uses modules that ship with Expo SDK 57 
 - ✅ 27 unit tests in the app (cart pricing & store, option selection, entry routing, mock services) + 12 in `@hungerly/utils`.
 - ✅ `expo-doctor` 21/21; Android and iOS Hermes bundles build.
 - ✅ Visual check: the full journey (onboarding → login → OTP incl. error → profile → home → listing/filter → restaurant → dish → cart → search → orders → account) was rendered in a temporary web build at 390×844 with zero console errors; layout issues found were fixed.
-- ⏳ Not yet verified on physical Android/iOS devices; no component/E2E tests yet (planned: React Native Testing Library, Maestro).
+- ✅ Physical Android (Expo Go): onboarding, login + OTP, home, restaurant list, restaurant detail, dish, add to cart, cart and tab navigation passed on 2026-10-02, after `OtpInput`, `BrandSplash`, `useQuery` and service errors moved to shared packages. No visible issues; no Metro errors.
+- ⏳ Not yet verified on iOS devices or in an Android development build; no component/E2E tests yet (planned: React Native Testing Library, Maestro).

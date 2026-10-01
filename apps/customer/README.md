@@ -5,7 +5,7 @@ Expo (React Native) customer app. **Prototype**: runs entirely on mock data; no 
 ```bash
 # from the repository root
 pnpm install
-pnpm dev:customer          # then press "a" for an Android emulator, or scan the QR code with Expo Go (not yet device-verified)
+pnpm dev:customer          # then press "a" for an Android emulator, or open it in Expo Go on a phone (verified on physical Android)
 ```
 
 Prototype login: any valid Indian mobile number, OTP **123456**.
