@@ -1,0 +1,8 @@
+{
+  "extends": "@hungerly/config/tsconfig.base.json",
+  "compilerOptions": {
+    "module": "preserve",
+    "customConditions": ["react-native"]
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,10 @@
+[run]
+source = app
+# SQLAlchemy's async layer runs code inside greenlets; without this, coverage loses track after each await.
+concurrency = greenlet,thread
+omit =
+    app/__init__.py
+
+[report]
+skip_covered = True
+show_missing = True

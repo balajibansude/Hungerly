@@ -1,0 +1,2 @@
+# React Native needs a flat node_modules for Metro (same as the customer app, ADR-012).
+nodeLinker: hoisted

@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "Hungerly",
+    "slug": "hungerly-customer",
+    "version": "0.1.0",
+    "scheme": "hungerly",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#C2410C",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router",
+      "expo-image",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#C2410C",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

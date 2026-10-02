@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Force | Select-Object Mode,Name; Get-ChildItem -Directory | ForEach-Object { \"--- $\\($_.Name\\)\"; Get-ChildItem $_.FullName -Force | Select-Object -ExpandProperty Name })",
+      "PowerShell($d=\"P:\\\\Projects\\\\Hungerly-Freelancing\\\\Hungerly-UserApplication\\\\docs\"; Get-ChildItem $d -Recurse -File | Select-Object @{n='Path';e={$_.FullName.Replace\\($d,''\\)}},Length; python --version; docker --version; psql --version; redis-server --version; node --version; pnpm --version)",
+      "PowerShell($u=\"P:\\\\Projects\\\\Hungerly-Freelancing\\\\Hungerly-UserApplication\"; Get-Content \"$u\\\\apps\\\\customer\\\\package.json\"; Get-Content \"$u\\\\apps\\\\customer\\\\app.json\" -ErrorAction SilentlyContinue; Get-ChildItem \"$u\\\\apps\\\\customer\" -Force | Select-Object -ExpandProperty Name; Get-ChildItem \"$u\\\\packages\\\\ui\\\\src\\\\theme\",\"$u\\\\packages\\\\ui\\\\src\\\\components\" | Select-Object Name,Length)"
+    ]
+  }
+}
