@@ -1,10 +1,12 @@
-import { EmptyState, Screen } from '@hungerly/ui';
+import { UpcomingTab } from '@/features/shell/UpcomingTab';
 
-// Placeholder route: being implemented in this change set; replaced before release.
-export default function PendingScreen() {
+export default function BranchSetupStepScreen() {
   return (
-    <Screen edges={['top', 'bottom']}>
-      <EmptyState icon="construct-outline" title="Being built" message="This screen is part of the current update." />
-    </Screen>
+    <UpcomingTab
+      title="Branch setup"
+      icon="build-outline"
+      heading="Coming soon"
+      message="Guided branch setup steps will be available in a future update."
+    />
   );
 }
