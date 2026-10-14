@@ -14,7 +14,7 @@ import {
 } from '@hungerly/ui';
 import { formatMoney } from '@hungerly/utils';
 import { router } from 'expo-router';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useActiveBranch } from '@/features/branch/useActiveBranch';
 import { useApiQuery } from '@/lib/hooks';
@@ -172,18 +172,18 @@ export default function WalletScreen() {
 
 function NavRow({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) {
   return (
-    <View
-      style={styles.navRow}
-      accessible
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.navRow, pressed && styles.navRowPressed]}
       accessibilityRole="button"
-      onAccessibilityAction={() => onPress()}
+      accessibilityLabel={label}
     >
       <Icon name={icon as never} color="textSecondary" />
       <Text variant="body" style={styles.flex}>
         {label}
       </Text>
       <Icon name="chevron-forward-outline" color="textTertiary" size="sm" />
-    </View>
+    </Pressable>
   );
 }
 
@@ -199,4 +199,5 @@ const styles = StyleSheet.create({
   summaryRow: { flexDirection: 'row', gap: spacing.md },
   summaryItem: { flex: 1, alignItems: 'center', gap: spacing.xs },
   navRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg },
+  navRowPressed: { backgroundColor: colors.surfacePressed },
 });
