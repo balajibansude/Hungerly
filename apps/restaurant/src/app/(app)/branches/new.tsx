@@ -1,10 +1,12 @@
-import { EmptyState, Screen } from '@hungerly/ui';
+import { UpcomingTab } from '@/features/shell/UpcomingTab';
 
-// Placeholder route: being implemented in this change set; replaced before release.
-export default function PendingScreen() {
+export default function NewBranchScreen() {
   return (
-    <Screen edges={['top', 'bottom']}>
-      <EmptyState icon="construct-outline" title="Being built" message="This screen is part of the current update." />
-    </Screen>
+    <UpcomingTab
+      title="New branch"
+      icon="add-circle-outline"
+      heading="Coming soon"
+      message="Adding new branches will be available in a future update. Contact Swaadone support to add a new branch."
+    />
   );
 }
