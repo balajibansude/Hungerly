@@ -9,6 +9,7 @@ import {
   spacing,
   Text,
 } from '@hungerly/ui';
+import { OtpChallengeSchema, paths, SignInResponseSchema } from '@hungerly/api-client';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -22,7 +23,8 @@ import {
 
 import { describeDestination, identifierFromParams } from '@/features/auth/loginForm';
 import { useSessionStore } from '@/features/auth/session';
-import { PROTOTYPE_OTP, useServices, userMessage } from '@/services';
+import { api } from '@/lib/api';
+import { errorMessage } from '@/lib/errors';
 
 const CODE_LENGTH = 6;
 
@@ -32,9 +34,9 @@ export default function VerifyScreen() {
     destination: string;
     requestId: string;
     resendAfter?: string;
+    devDelivery?: string;
   }>();
   const identifier = identifierFromParams(params.channel, params.destination);
-  const { auth } = useServices();
   const signIn = useSessionStore((s) => s.signIn);
   const inputRef = useRef<TextInput>(null);
 
@@ -42,6 +44,7 @@ export default function VerifyScreen() {
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
+  const [devDelivery, setDevDelivery] = useState(params.devDelivery === 'server_log');
   const [secondsLeft, setSecondsLeft] = useState(Number(params.resendAfter ?? 30));
 
   useEffect(() => {
@@ -71,12 +74,16 @@ export default function VerifyScreen() {
     setVerifying(true);
     setError(null);
     try {
-      const session = await auth.verifyOtp(requestId, value);
-      signIn(session);
+      const response = await api.request('POST', paths.auth.otpVerify, {
+        body: { requestId, code: value },
+        schema: SignInResponseSchema,
+        anonymous: true,
+      });
+      await signIn(response);
       // The gate decides between onboarding and the restaurant workspace.
       router.replace('/');
     } catch (e) {
-      setError(userMessage(e));
+      setError(errorMessage(e));
       setCode('');
       inputRef.current?.focus();
     } finally {
@@ -88,11 +95,16 @@ export default function VerifyScreen() {
     setError(null);
     setCode('');
     try {
-      const challenge = await auth.requestOtp(identifier);
+      const challenge = await api.request('POST', paths.auth.otpRequest, {
+        body: identifier,
+        schema: OtpChallengeSchema,
+        anonymous: true,
+      });
       setRequestId(challenge.requestId);
+      setDevDelivery(challenge.devDelivery === 'server_log');
       setSecondsLeft(challenge.resendAfterSeconds);
     } catch (e) {
-      setError(userMessage(e));
+      setError(errorMessage(e));
     }
   };
 
@@ -110,11 +122,13 @@ export default function VerifyScreen() {
             </Text>
           </View>
 
-          <Badge
-            tone="warning"
-            icon="flask-outline"
-            label={`Prototype: no ${identifier.channel === 'email' ? 'email' : 'SMS'} is sent. Use ${PROTOTYPE_OTP}`}
-          />
+          {devDelivery && (
+            <Badge
+              tone="warning"
+              icon="construct-outline"
+              label="Development server: the code is printed in the API log, not sent"
+            />
+          )}
 
           <OtpInput
             ref={inputRef}

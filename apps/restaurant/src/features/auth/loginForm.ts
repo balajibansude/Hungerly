@@ -6,7 +6,10 @@ import {
   toE164India,
 } from '@hungerly/utils';
 
-import type { LoginIdentifier } from '@/services';
+import type { OtpRequest } from '@hungerly/api-client';
+
+/** How an owner identifies themselves: phone (primary) or email. */
+export type LoginIdentifier = OtpRequest;
 
 export type LoginChannel = LoginIdentifier['channel'];
 

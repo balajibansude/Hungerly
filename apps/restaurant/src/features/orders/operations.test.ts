@@ -88,7 +88,7 @@ describe('order actions', () => {
     });
     expect(store().byId[NEW_ORDER]).toMatchObject({
       status: 'cancelled',
-      cancellationReason: 'too_busy',
+      cancelReason: 'too_busy',
     });
     expect(store().byId[PREPARING]?.status).toBe('ready_for_pickup');
   });

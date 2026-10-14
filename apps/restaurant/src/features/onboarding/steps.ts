@@ -1,40 +1,69 @@
-import type { RegistrationSection } from '@/services/registrationRules';
+import type { OnboardingChecklist, OnboardingStep } from '@hungerly/api-client';
 
-/**
- * The registration flow, in order (R3). Steps 1–5 collect one section each, step 6
- * reviews everything and step 7 confirms success.
- */
-export const REGISTRATION_STEPS = [
-  { key: 'restaurant', title: 'Restaurant details', href: '/register/details' },
-  { key: 'owner', title: 'Owner or manager', href: '/register/owner' },
-  { key: 'address', title: 'Address', href: '/register/address' },
-  { key: 'contact', title: 'Contact', href: '/register/contact' },
-  { key: 'operations', title: 'Operations', href: '/register/operations' },
-  { key: 'review', title: 'Review', href: '/register/review' },
-  { key: 'complete', title: 'Registration complete', href: '/registration-complete' },
-] as const;
+/** Wizard order. Matches the server checklist (`OnboardingStepSchema`). */
+export const STEP_ORDER: OnboardingStep[] = [
+  'business',
+  'details',
+  'location',
+  'contact',
+  'hours',
+  'licence',
+  'bank',
+  'declaration',
+];
 
-export type RegistrationStep = (typeof REGISTRATION_STEPS)[number];
-export type RegistrationStepKey = RegistrationStep['key'];
+export const STEP_META: Record<OnboardingStep, { title: string; summary: string }> = {
+  business: { title: 'Business profile', summary: 'Legal name and business type' },
+  details: { title: 'Restaurant details', summary: 'Name, cuisines and food type' },
+  location: { title: 'Location', summary: 'Address and map pin' },
+  contact: { title: 'Contact', summary: 'Branch phone and email' },
+  hours: { title: 'Opening hours', summary: 'Sessions and breaks for each day' },
+  licence: { title: 'Food licence', summary: 'FSSAI licence for this branch' },
+  bank: { title: 'Bank & payouts', summary: 'Account for earnings and bank proof' },
+  declaration: { title: 'Declaration', summary: 'Food safety and accuracy commitments' },
+};
 
-export const TOTAL_STEPS = REGISTRATION_STEPS.length;
-
-export function stepNumber(key: RegistrationStepKey): number {
-  return REGISTRATION_STEPS.findIndex((step) => step.key === key) + 1;
+export function isOnboardingStep(value: string | undefined): value is OnboardingStep {
+  return value !== undefined && (STEP_ORDER as string[]).includes(value);
 }
 
-export function stepByKey<K extends RegistrationStepKey>(key: K) {
-  const step = REGISTRATION_STEPS.find((s) => s.key === key);
-  if (!step) throw new Error(`Unknown registration step ${key}`);
-  return step as Extract<RegistrationStep, { key: K }>;
+/** 1-based position for "Step 3 of 8". */
+export function stepNumber(step: OnboardingStep): number {
+  return STEP_ORDER.indexOf(step) + 1;
 }
 
-/** The step after `key`, for the Next button on steps 1–5. */
-export function nextStep(key: RegistrationStepKey): RegistrationStep | null {
-  return REGISTRATION_STEPS[stepNumber(key)] ?? null;
+export function nextStep(step: OnboardingStep): OnboardingStep | null {
+  return STEP_ORDER[STEP_ORDER.indexOf(step) + 1] ?? null;
 }
 
-/** The form step that edits a review section. */
-export function stepForSection(section: RegistrationSection) {
-  return stepByKey(section);
+export function previousStep(step: OnboardingStep): OnboardingStep | null {
+  const index = STEP_ORDER.indexOf(step);
+  return index > 0 ? STEP_ORDER[index - 1]! : null;
+}
+
+/** The first incomplete step in wizard order, or null when every step is complete. */
+export function firstIncompleteStep(checklist: OnboardingChecklist): OnboardingStep | null {
+  const incomplete = new Set(checklist.steps.filter((s) => !s.complete).map((s) => s.step));
+  return STEP_ORDER.find((step) => incomplete.has(step)) ?? null;
+}
+
+export function completedCount(checklist: OnboardingChecklist): number {
+  return checklist.steps.filter((s) => s.complete).length;
+}
+
+const STEP_ROUTES: Record<string, string> = {
+  restaurant: '/branches/new',
+  business: '/business',
+  details: '/business',
+  location: '/business',
+  contact: '/business',
+  hours: '/hours',
+  licence: '/documents',
+  bank: '/documents',
+  declaration: '/declaration',
+};
+
+/** Maps an onboarding step key (or 'restaurant' for the first registration step) to its route href. */
+export function stepByKey(key: string): { href: string } {
+  return { href: STEP_ROUTES[key] ?? '/business' };
 }

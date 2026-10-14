@@ -1,26 +1,26 @@
+import { paths } from '@hungerly/api-client';
 import { useState } from 'react';
 
-import { useServices } from '@/services';
+import { api } from '@/lib/api';
 
-import { clearLocalSession } from './clearLocalSession';
+import { useSessionStore } from './session';
 
 /**
- * Ends the session. Local state (session and registration draft) is cleared even if the
+ * Ends the session on the server, then locally. Local state is cleared even if the
  * server call fails, so the user is never stuck signed in; the guards then show login.
  */
 export function useSignOut() {
-  const { auth } = useServices();
   const [signingOut, setSigningOut] = useState(false);
 
   const signOut = async () => {
     setSigningOut(true);
     try {
-      await auth.signOut();
+      await api.request('POST', paths.auth.logout);
     } catch {
       // Ignored: a failed server sign-out must not keep the user signed in on this device.
     } finally {
       setSigningOut(false);
-      clearLocalSession();
+      await useSessionStore.getState().signOut();
     }
   };
 

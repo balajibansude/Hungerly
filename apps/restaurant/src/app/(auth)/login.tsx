@@ -1,5 +1,5 @@
+import { OtpChallengeSchema, paths } from '@hungerly/api-client';
 import { Badge, Button, Chip, Screen, screenGutter, spacing, Text, TextField } from '@hungerly/ui';
-import { formatE164India } from '@hungerly/utils';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, ScrollView, StyleSheet, View } from 'react-native';
@@ -10,11 +10,13 @@ import {
   parseLoginInput,
   type LoginChannel,
 } from '@/features/auth/loginForm';
-import { DEMO_PHONE_E164, useServices, userMessage } from '@/services';
+import { BrandLogo } from '@/features/brand/BrandLogo';
+import { brand } from '@/features/brand/brand';
+import { api } from '@/lib/api';
+import { errorMessage } from '@/lib/errors';
 
-/** R1: restaurant staff sign in with a one-time code sent to their phone or email. */
+/** R1: restaurant owners sign in with a one-time code sent to their phone or email. */
 export default function LoginScreen() {
-  const { auth } = useServices();
   const [channel, setChannel] = useState<LoginChannel>('phone');
   const [value, setValue] = useState('');
   const [touched, setTouched] = useState(false);
@@ -40,7 +42,11 @@ export default function LoginScreen() {
     setSubmitting(true);
     setError(null);
     try {
-      const challenge = await auth.requestOtp(identifier);
+      const challenge = await api.request('POST', paths.auth.otpRequest, {
+        body: identifier,
+        schema: OtpChallengeSchema,
+        anonymous: true,
+      });
       router.push({
         pathname: '/verify',
         params: {
@@ -48,10 +54,11 @@ export default function LoginScreen() {
           destination: destinationOf(identifier),
           requestId: challenge.requestId,
           resendAfter: String(challenge.resendAfterSeconds),
+          devDelivery: challenge.devDelivery ?? '',
         },
       });
     } catch (e) {
-      setError(userMessage(e));
+      setError(errorMessage(e));
     } finally {
       setSubmitting(false);
     }
@@ -63,17 +70,20 @@ export default function LoginScreen() {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <View style={styles.brandRow}>
-              <Text variant="brand" color="primary">
-                hungerly
-              </Text>
-              <Badge label="Partner" tone="dark" style={styles.partnerBadge} />
+              <BrandLogo height={56} />
+              <View style={styles.brandText}>
+                <Text variant="h2" color="primaryText">
+                  {brand.name}
+                </Text>
+                <Badge label="Partner" tone="offer" style={styles.partnerBadge} />
+              </View>
             </View>
             <Text variant="h1" accessibilityRole="header">
               Log in to your restaurant
             </Text>
             <Text variant="body" color="textSecondary">
-              We’ll send a 6-digit code to confirm it’s you. Use the phone number or email your
-              restaurant is registered with.
+              Restaurant owners sign in with a 6-digit code. New here? Use your phone number or
+              email and we’ll help you register your restaurant.
             </Text>
           </View>
 
@@ -139,11 +149,6 @@ export default function LoginScreen() {
             />
           )}
 
-          <Badge
-            tone="warning"
-            icon="flask-outline"
-            label={`Prototype: ${formatE164India(DEMO_PHONE_E164)} opens the demo restaurant`}
-          />
 
           <View style={styles.spacer} />
 
@@ -155,7 +160,7 @@ export default function LoginScreen() {
             fullWidth
           />
           <Text variant="caption" color="textTertiary" align="center">
-            By continuing you agree to Hungerly’s Partner Terms and Privacy Policy.
+            By continuing you agree to Swaadone’s Partner Terms and Privacy Policy.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -173,8 +178,9 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
   },
   header: { gap: spacing.sm, marginBottom: spacing.sm },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  partnerBadge: { alignSelf: 'center' },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  brandText: { gap: spacing.xs, alignItems: 'flex-start' },
+  partnerBadge: { alignSelf: 'flex-start' },
   channels: { flexDirection: 'row', gap: spacing.sm },
   spacer: { flex: 1, minHeight: spacing['2xl'] },
 });

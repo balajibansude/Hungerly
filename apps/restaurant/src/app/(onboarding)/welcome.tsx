@@ -44,7 +44,7 @@ export default function WelcomeScreen() {
     if (!user) return;
     // Resumes this person's draft from this session, or starts a clean one.
     startRegistration(user);
-    router.push(stepByKey('restaurant').href);
+    router.push(stepByKey('restaurant').href as any);
   };
   const signedInAs = user?.phoneE164 ? formatE164India(user.phoneE164) : (user?.email ?? '');
 

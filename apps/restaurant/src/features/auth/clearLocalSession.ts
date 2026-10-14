@@ -1,15 +1,12 @@
-import { useOnboardingStore } from '@/features/onboarding/draft';
+import { clearTokens } from '@/lib/api';
+
 import { useOrdersStore } from '@/features/orders/store';
 
 import { useSessionStore } from './session';
 
-/**
- * Forgets everything this device holds for the signed-in person: the registration draft
- * (and any pending completion screen), cached orders and the session. The route guards
- * then show login.
- */
+/** Wipes every local credential and cached data — called on sign-out and session expiry. */
 export function clearLocalSession(): void {
-  useOnboardingStore.getState().reset();
+  clearTokens();
+  useSessionStore.getState().signOut().catch(() => undefined);
   useOrdersStore.getState().reset();
-  useSessionStore.getState().signOut();
 }

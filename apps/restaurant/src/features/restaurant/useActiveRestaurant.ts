@@ -1,17 +1,19 @@
-import { ServiceError, useQuery } from '@hungerly/app-core';
+import { BranchDetailSchema, paths, type Branch } from '@hungerly/api-client';
+import { useQuery, type QueryResult } from '@hungerly/app-core';
 
-import { activeMembership, useSessionStore } from '@/features/auth/session';
-import { useServices } from '@/services';
+import { api } from '@/lib/api';
 
-/** Loads the profile of the restaurant the app is working on (loading / error / data). */
-export function useActiveRestaurant() {
-  const { restaurants } = useServices();
-  const restaurantId = useSessionStore((s) => activeMembership(s.session)?.restaurantId ?? null);
+import { useActiveBranch } from '@/features/branch/useActiveBranch';
 
-  return useQuery(`restaurant:${restaurantId ?? 'none'}`, () => {
-    if (!restaurantId) {
-      return Promise.reject(new ServiceError('not_found', 'No restaurant is linked to you yet.'));
-    }
-    return restaurants.get(restaurantId);
-  });
+/** The active branch's full details, polled on focus. Used by screens needing prep time or status. */
+export function useActiveRestaurant(): QueryResult<Branch> {
+  const { branchId } = useActiveBranch();
+  const key = branchId ? `branch:${branchId}` : 'idle';
+  return useQuery(key, () =>
+    branchId
+      ? api
+          .request('GET', paths.partner.branch(branchId), { schema: BranchDetailSchema })
+          .then((d) => d.branch)
+      : new Promise<Branch>(() => undefined),
+  );
 }

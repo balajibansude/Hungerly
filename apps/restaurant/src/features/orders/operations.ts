@@ -1,97 +1,93 @@
-import { isServiceError, userMessage } from '@hungerly/app-core';
-import type { Id, OrderRejectReason, PartnerOrder } from '@hungerly/types';
+import { isApiError, type Order } from '@hungerly/api-client';
 
+import { errorMessage } from '@/lib/errors';
 import type { OrderService } from '@/services';
 
+import type { RejectReason } from './format';
 import { useOrdersStore } from './store';
-
-/**
- * Order operations: the only code that moves orders between the OrderService and the
- * orders store. Plain functions (no React), so they are tested directly.
- */
-
-const store = () => useOrdersStore.getState();
-
-/** Loads the board. `refresh` keeps the current orders on screen while it runs. */
-export async function loadOrders(
-  service: OrderService,
-  restaurantId: Id,
-  mode: 'initial' | 'refresh' = 'initial',
-): Promise<void> {
-  store().startLoading(restaurantId, mode);
-  try {
-    store().loaded(restaurantId, await service.list(restaurantId));
-  } catch (error) {
-    store().loadFailed(userMessage(error));
-  }
-}
-
-/** Fetches one order (e.g. opened from a link) into the cache. */
-export async function fetchOrder(
-  service: OrderService,
-  restaurantId: Id,
-  orderId: Id,
-): Promise<PartnerOrder> {
-  const order = await service.get(restaurantId, orderId);
-  store().upsert(order);
-  return order;
-}
 
 export type OrderActionInput =
   | { action: 'accept'; prepMinutes: number }
-  | { action: 'reject'; reason: OrderRejectReason }
+  | { action: 'reject'; reason: RejectReason }
   | { action: 'markReady' };
 
 export type OrderActionOutcome =
-  | { ok: true; order: PartnerOrder }
+  | { ok: true; order: Order }
   | { ok: false; reason: 'busy' }
   | { ok: false; reason: 'failed'; message: string };
 
-/** Errors meaning our copy of the order is out of date. */
-const STALE_CODES = new Set(['order.invalid_transition', 'order.version_conflict', 'not_found']);
+const STALE_CODES = new Set([
+  'order.invalid_transition',
+  'order.version_conflict',
+  'not_found',
+  'conflict',
+]);
 
-/**
- * Runs accept / reject / mark ready against the version on screen. Ignores a second tap
- * while one is in flight. When the service reports the order changed elsewhere, the
- * latest copy is fetched so the screen shows what actually happened.
- */
+export async function loadOrders(
+  service: OrderService,
+  branchId: string,
+  mode: 'initial' | 'refresh' = 'initial',
+): Promise<void> {
+  const store = useOrdersStore.getState();
+  store.startLoading(branchId, mode);
+  try {
+    const page = await service.list(branchId, {});
+    store.setOrders(page.items, branchId);
+  } catch (error) {
+    store.setLoadError(errorMessage(error));
+  }
+}
+
+export async function fetchOrder(
+  service: OrderService,
+  branchId: string,
+  orderId: string,
+): Promise<void> {
+  const order = await service.get(branchId, orderId);
+  useOrdersStore.getState().setOrder(order);
+}
+
 export async function performOrderAction(
   service: OrderService,
-  restaurantId: Id,
-  orderId: Id,
+  branchId: string,
+  orderId: string,
   input: OrderActionInput,
 ): Promise<OrderActionOutcome> {
-  const current = store().byId[orderId];
-  if (store().pending[orderId]) return { ok: false, reason: 'busy' };
-  if (!current)
-    return { ok: false, reason: 'failed', message: 'This order is no longer available.' };
+  const store = useOrdersStore.getState();
 
-  store().setPending(orderId, input.action);
-  const expectedVersion = current.version;
+  if (store.pending[orderId]) return { ok: false, reason: 'busy' };
+
+  const cached = store.byId[orderId];
+  if (!cached) return { ok: false, reason: 'failed', message: 'Order not found.' };
+
+  store.setPending(orderId, true);
   try {
-    const order =
+    const updated =
       input.action === 'accept'
-        ? await service.accept(restaurantId, orderId, {
+        ? await service.accept(branchId, orderId, {
             prepMinutes: input.prepMinutes,
-            expectedVersion,
+            expectedVersion: cached.version,
           })
         : input.action === 'reject'
-          ? await service.reject(restaurantId, orderId, { reason: input.reason, expectedVersion })
-          : await service.markReady(restaurantId, orderId, { expectedVersion });
-    store().upsert(order);
-    return { ok: true, order };
+          ? await service.reject(branchId, orderId, {
+              reason: input.reason,
+              expectedVersion: cached.version,
+            })
+          : await service.markReady(branchId, orderId, { expectedVersion: cached.version });
+
+    store.setOrder(updated);
+    return { ok: true, order: updated };
   } catch (error) {
-    if (isServiceError(error) && STALE_CODES.has(error.code)) {
+    if (isApiError(error) && STALE_CODES.has(error.code)) {
       try {
-        await fetchOrder(service, restaurantId, orderId);
-      } catch (refetchError) {
-        if (isServiceError(refetchError) && refetchError.code === 'not_found') {
-          store().remove(orderId);
-        }
+        const latest = await service.get(branchId, orderId);
+        store.setOrder(latest);
+      } catch {
+        // Ignore secondary fetch failure.
       }
     }
-    return { ok: false, reason: 'failed', message: userMessage(error) };
+    return { ok: false, reason: 'failed', message: errorMessage(error) };
   } finally {
-    store().setPending(orderId, null);
+    store.setPending(orderId, false);
   }
 }

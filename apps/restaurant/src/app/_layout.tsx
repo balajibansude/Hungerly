@@ -15,7 +15,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { routeAccessFor, useSessionStore } from '@/features/auth/session';
-import { ServicesProvider } from '@/services';
 
 // Keep the native splash visible until fonts are ready, so text never flashes unstyled.
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -43,8 +42,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <ServicesProvider>
-          <StatusBar style="dark" />
+        <StatusBar style="dark" />
           <Stack
             screenOptions={{
               headerShown: false,
@@ -62,17 +60,10 @@ export default function RootLayout() {
               <Stack.Screen name="(onboarding)" options={{ animation: 'fade' }} />
             </Stack.Protected>
 
-            <Stack.Protected guard={access.hasRestaurant}>
-              {/* Shown once after registering; outside onboarding, so back can't return there. */}
-              <Stack.Screen
-                name="registration-complete"
-                options={{ animation: 'fade', gestureEnabled: false }}
-              />
-              <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-              <Stack.Screen name="orders/[id]" />
+            <Stack.Protected guard={access.hasWorkspace}>
+              <Stack.Screen name="(app)" options={{ animation: 'fade' }} />
             </Stack.Protected>
           </Stack>
-        </ServicesProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

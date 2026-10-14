@@ -1,10 +1,13 @@
-import type { OrderActor, OrderStatusEvent } from '@hungerly/types';
+import type { Order } from '@hungerly/api-client';
 import { colors, orderStatusLabel, radius, spacing, Text } from '@hungerly/ui';
 import { StyleSheet, View } from 'react-native';
 
 import { formatClock } from '../format';
 
-const actorLabels: Record<OrderActor, string> = {
+type TimelineEvent = Order['timeline'][0];
+type Actor = TimelineEvent['actor'];
+
+const actorLabels: Record<Actor, string> = {
   customer: 'Customer',
   restaurant: 'Restaurant',
   delivery_partner: 'Rider',
@@ -13,24 +16,24 @@ const actorLabels: Record<OrderActor, string> = {
 };
 
 /** The order's recorded history (`order_status_events`), oldest first. */
-export function OrderTimeline({ events }: { events: OrderStatusEvent[] }) {
+export function OrderTimeline({ events }: { events: TimelineEvent[] }) {
   return (
     <View style={styles.list}>
       {events.map((event, index) => {
         const last = index === events.length - 1;
         return (
           <View
-            key={`${event.toStatus}:${event.at}`}
+            key={`${event.status}:${event.at}`}
             style={styles.event}
             accessible
-            accessibilityLabel={`${orderStatusLabel(event.toStatus, 'partner')} at ${formatClock(event.at)} by ${actorLabels[event.actor]}`}
+            accessibilityLabel={`${orderStatusLabel(event.status, 'partner')} at ${formatClock(event.at)} by ${actorLabels[event.actor]}`}
           >
             <View style={styles.rail}>
               <View style={[styles.dot, last && styles.dotCurrent]} />
               {!last && <View style={styles.line} />}
             </View>
             <View style={styles.text}>
-              <Text variant="label">{orderStatusLabel(event.toStatus, 'partner')}</Text>
+              <Text variant="label">{orderStatusLabel(event.status, 'partner')}</Text>
               <Text variant="metadata" color="textSecondary">
                 {formatClock(event.at)} · {actorLabels[event.actor]}
               </Text>

@@ -1,49 +1,34 @@
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 
-import { activeMembership, useSessionStore } from '@/features/auth/session';
+import { useActiveBranch } from '@/features/branch/useActiveBranch';
 import { useServices } from '@/services';
 
 import { loadOrders } from './operations';
 import { useOrdersStore } from './store';
+import { useNow, usePolling } from './usePolling';
 
-/**
- * The active restaurant's orders for the board. Loads once, then quietly refreshes each
- * time the screen regains focus (no live updates in the prototype); `refresh` is for
- * pull-to-refresh and retry.
- */
+export { useNow };
+
+/** Drives the live order board: loads on mount, refreshes every 20 s while focused. */
 export function useOrderBoard() {
+  const { branchId } = useActiveBranch();
   const { orders: service } = useServices();
-  const restaurantId = useSessionStore((s) => activeMembership(s.session)?.restaurantId ?? null);
-  const byId = useOrdersStore((s) => s.byId);
   const load = useOrdersStore((s) => s.load);
   const refreshing = useOrdersStore((s) => s.refreshing);
+  const orders = useOrdersStore((s) => Object.values(s.byId));
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!restaurantId) return;
-      const { restaurantId: cachedFor, load: current } = useOrdersStore.getState();
-      const fresh = cachedFor !== restaurantId || current.status === 'idle';
-      void loadOrders(service, restaurantId, fresh ? 'initial' : 'refresh');
-    }, [service, restaurantId]),
+  const doLoad = useCallback(
+    (mode: 'initial' | 'refresh') => {
+      if (!branchId) return;
+      loadOrders(service, branchId, mode).catch(() => undefined);
+    },
+    [branchId, service],
   );
 
-  const refresh = useCallback(() => {
-    if (restaurantId) void loadOrders(service, restaurantId, 'refresh');
-  }, [service, restaurantId]);
-  const retry = useCallback(() => {
-    if (restaurantId) void loadOrders(service, restaurantId, 'initial');
-  }, [service, restaurantId]);
+  const refresh = useCallback(() => doLoad('refresh'), [doLoad]);
+  const retry = useCallback(() => doLoad('initial'), [doLoad]);
 
-  return { orders: Object.values(byId), load, refreshing, refresh, retry };
-}
+  usePolling(refresh);
 
-/** The current time, updated every 30 s so waiting and prep timers stay current. */
-export function useNow(intervalMs = 30_000): Date {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), intervalMs);
-    return () => clearInterval(timer);
-  }, [intervalMs]);
-  return now;
+  return { orders, load, refreshing, refresh, retry };
 }

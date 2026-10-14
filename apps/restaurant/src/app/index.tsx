@@ -1,31 +1,38 @@
-import { BrandSplash } from '@hungerly/ui';
+import { BrandSplash, EmptyState, Screen } from '@hungerly/ui';
 import { Redirect } from 'expo-router';
 import { useEffect } from 'react';
 
 import { entryRouteFor, useSessionStore } from '@/features/auth/session';
-import { useOnboardingStore } from '@/features/onboarding/draft';
-import { useServices } from '@/services';
+import { brand } from '@/features/brand/brand';
+import { API_BASE_URL } from '@/lib/api';
 
 /**
- * Splash + routing gate. Shows the brand while the saved session is checked, then sends
- * the user to login, onboarding, the registration-complete screen or the workspace.
- * Every auth and registration transition returns here so routing lives in one place.
+ * Splash + routing gate. Restores the saved session (refresh token in secure storage →
+ * `GET /partner/me`), then sends the owner to login, first-time onboarding or the workspace.
  */
 export default function Index() {
-  const { auth } = useServices();
   const isRestored = useSessionStore((s) => s.isRestored);
   const session = useSessionStore((s) => s.session);
-  const markRestored = useSessionStore((s) => s.markRestored);
-  const registrationCompleted = useOnboardingStore((s) => s.completed !== null);
+  const restore = useSessionStore((s) => s.restore);
 
   useEffect(() => {
-    if (isRestored) return;
-    auth
-      .restoreSession()
-      .then(markRestored)
-      .catch(() => markRestored(null));
-  }, [auth, isRestored, markRestored]);
+    if (!isRestored && API_BASE_URL) restore().catch(() => undefined);
+  }, [isRestored, restore]);
 
-  if (!isRestored) return <BrandSplash tagline="Partner · run your restaurant" />;
-  return <Redirect href={entryRouteFor(session, { registrationCompleted })} />;
+  if (!API_BASE_URL) {
+    return (
+      <Screen edges={['top', 'bottom']}>
+        <EmptyState
+          icon="cloud-offline-outline"
+          title="Server address not set"
+          message="This build has no API address. Set EXPO_PUBLIC_API_URL (see apps/restaurant/README.md) and restart the app."
+        />
+      </Screen>
+    );
+  }
+  if (!isRestored) {
+    return <BrandSplash name={brand.name} logo={brand.logo} tagline="Partner · run your restaurant" />;
+  }
+  return <Redirect href={entryRouteFor(session)} />;
 }
+

@@ -9,13 +9,10 @@ export interface UpcomingTabProps {
   message: string;
 }
 
-/**
- * A navigation-shell tab whose feature is built in a later phase. Says so plainly instead
- * of showing fake controls.
- */
+/** Placeholder for a tab that is built in a future phase. */
 export function UpcomingTab({ title, icon, heading, message }: UpcomingTabProps) {
   return (
-    <Screen edges={['top']}>
+    <Screen edges={['top', 'bottom']}>
       <TabHeader title={title} />
       <EmptyState icon={icon} title={heading} message={message} />
     </Screen>

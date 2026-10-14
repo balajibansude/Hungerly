@@ -1,4 +1,4 @@
-import type { PartnerOrder } from '@hungerly/types';
+import type { Order } from '@hungerly/api-client';
 import { Badge, Card, colors, Icon, OrderStatusBadge, Skeleton, spacing, Text } from '@hungerly/ui';
 import { formatMoney } from '@hungerly/utils';
 import { StyleSheet, View } from 'react-native';
@@ -7,7 +7,7 @@ import { itemCount } from '../board';
 import { cancellationLabel, formatAgo, formatClock, kitchenTiming } from '../format';
 
 export interface OrderCardProps {
-  order: PartnerOrder;
+  order: Order;
   now: Date;
   onPress: () => void;
 }

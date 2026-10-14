@@ -1,11 +1,8 @@
+import type { Order } from '@hungerly/api-client';
 import type { BadgeTone } from '@hungerly/ui';
-import type {
-  OrderRejectReason,
-  PartnerOrder,
-  PaymentMethod,
-  PaymentStatus,
-} from '@hungerly/types';
 import { formatLocalTime, formatLocalTime12h, IST_UTC_OFFSET_MINUTES } from '@hungerly/utils';
+
+import { readyByIso } from './board';
 
 /** Kitchen clocks run on restaurant (IST) time, whatever the phone's timezone. */
 function istParts(iso: string) {
@@ -32,6 +29,16 @@ export function formatDateTime(iso: string): string {
   return `${WEEKDAYS[weekday]}, ${day} ${MONTHS[month]}, ${formatClock(iso)}`;
 }
 
+/** "2 Oct" for an ISO instant or a "YYYY-MM-DD" local date. */
+export function formatShortDate(value: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [, m, d] = value.split('-').map(Number);
+    return `${d} ${MONTHS[(m ?? 1) - 1]}`;
+  }
+  const { day, month } = istParts(value);
+  return `${day} ${MONTHS[month]}`;
+}
+
 export function minutesBetween(fromIso: string, to: Date): number {
   return Math.floor((to.getTime() - Date.parse(fromIso)) / 60_000);
 }
@@ -46,68 +53,82 @@ export function formatAgo(iso: string, now: Date): string {
   return rest ? `${hours} h ${rest} min ago` : `${hours} h ago`;
 }
 
+/** Seconds left to accept, or null when not applicable. Never negative. */
+export function acceptSecondsLeft(order: Pick<Order, 'status' | 'acceptBy'>, now: Date): number | null {
+  if (order.status !== 'placed' || !order.acceptBy) return null;
+  return Math.max(0, Math.floor((Date.parse(order.acceptBy) - now.getTime()) / 1000));
+}
+
+/** "2:05" */
+export function formatCountdown(seconds: number): string {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
 export interface KitchenTiming {
   label: string;
   tone: BadgeTone;
 }
 
 /** The time-sensitive line for an order on the board, or `null` when nothing is pending. */
-export function kitchenTiming(order: PartnerOrder, now: Date): KitchenTiming | null {
+export function kitchenTiming(order: Order, now: Date): KitchenTiming | null {
   switch (order.status) {
     case 'placed': {
-      const waiting = Math.max(0, minutesBetween(order.placedAt, now));
-      return { label: waiting < 1 ? 'Just placed' : `Waiting ${waiting} min`, tone: 'info' };
+      const left = acceptSecondsLeft(order, now);
+      if (left === null) {
+        const waited = minutesBetween(order.placedAt, now);
+        return { label: `Waiting ${waited} min`, tone: 'info' };
+      }
+      if (left === 0) return { label: 'Accept time is up', tone: 'error' };
+      return { label: `Accept within ${formatCountdown(left)}`, tone: left <= 60 ? 'error' : 'warning' };
     }
     case 'preparing': {
-      if (!order.estimatedReadyAt) return null;
-      const left = -minutesBetween(order.estimatedReadyAt, now);
-      if (left > 0)
-        return {
-          label: `Ready in ${left} min · by ${formatClock(order.estimatedReadyAt)}`,
-          tone: 'warning',
-        };
+      const readyBy = readyByIso(order);
+      if (!readyBy) return null;
+      const left = -minutesBetween(readyBy, now);
+      if (left > 0) return { label: `Ready in ${left} min · by ${formatClock(readyBy)}`, tone: 'warning' };
       if (left === 0) return { label: 'Due now', tone: 'warning' };
       return { label: `Overdue ${-left} min`, tone: 'error' };
     }
     case 'ready_for_pickup':
-      return order.readyAt
-        ? { label: `Ready since ${formatClock(order.readyAt)}`, tone: 'success' }
-        : null;
+      return order.readyAt ? { label: `Ready since ${formatClock(order.readyAt)}`, tone: 'success' } : null;
     default:
       return null;
   }
 }
 
-export const REJECT_REASON_OPTIONS: { value: OrderRejectReason; label: string }[] = [
+export const REJECT_REASON_OPTIONS = [
   { value: 'item_out_of_stock', label: 'Item out of stock' },
   { value: 'too_busy', label: 'Kitchen too busy' },
   { value: 'closing', label: 'Closing soon' },
   { value: 'other', label: 'Other reason' },
-];
+] as const;
+export type RejectReason = (typeof REJECT_REASON_OPTIONS)[number]['value'];
 
-/** Staff-facing words for who cancelled and why (`cancelled_by`, `cancellation_reason`). */
-export function cancellationLabel(
-  order: Pick<PartnerOrder, 'cancellationReason' | 'cancelledBy'>,
-): string {
-  const reason = REJECT_REASON_OPTIONS.find((o) => o.value === order.cancellationReason);
+/** Owner-facing words for who cancelled and why. */
+export function cancellationLabel(order: Pick<Order, 'cancelReason' | 'cancelledBy'>): string {
+  const reason = REJECT_REASON_OPTIONS.find((o) => o.value === order.cancelReason);
   switch (order.cancelledBy) {
     case 'restaurant':
       return reason ? `Rejected: ${reason.label.toLowerCase()}` : 'Rejected by the restaurant';
     case 'customer':
       return 'Cancelled by the customer';
     case 'admin':
-      return 'Cancelled by Hungerly support';
+      return 'Cancelled by Swaadone support';
+    case 'system':
+      return order.cancelReason === 'not_accepted_in_time'
+        ? 'Cancelled: not accepted in time'
+        : 'Cancelled automatically';
     default:
       return 'Cancelled';
   }
 }
 
-const paymentMethodLabels: Record<PaymentMethod, string> = {
+const paymentMethodLabels: Record<Order['paymentMethod'], string> = {
   online: 'Paid online',
   cod: 'Cash on delivery',
 };
 
-const paymentStatusLabels: Record<PaymentStatus, string> = {
+const paymentStatusLabels: Record<Order['paymentStatus'], string> = {
   pending: 'payment pending',
   paid: 'paid',
   failed: 'payment failed',
@@ -118,7 +139,7 @@ const paymentStatusLabels: Record<PaymentStatus, string> = {
 };
 
 /** "Paid online", "Cash on delivery · payment pending", "Paid online · refund in progress". */
-export function paymentLabel(order: Pick<PartnerOrder, 'paymentMethod' | 'paymentStatus'>): string {
+export function paymentLabel(order: Pick<Order, 'paymentMethod' | 'paymentStatus'>): string {
   const method = paymentMethodLabels[order.paymentMethod];
   if (order.paymentMethod === 'online' && order.paymentStatus === 'paid') return method;
   return `${method} · ${paymentStatusLabels[order.paymentStatus]}`;

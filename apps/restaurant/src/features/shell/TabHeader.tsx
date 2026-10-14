@@ -2,25 +2,20 @@ import { screenGutter, spacing, Text } from '@hungerly/ui';
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { activeMembership, useSessionStore } from '@/features/auth/session';
+import { BranchSwitcher } from '@/features/branch/BranchSwitcher';
 
 export interface TabHeaderProps {
   title: string;
-  /** Right-aligned controls (the online switch and notifications bell arrive later). */
+  /** Right-aligned controls. */
   actions?: ReactNode;
 }
 
-/** Title row for every tab, with the restaurant name so staff always know where they are. */
+/** Title row for every tab, with the branch switcher so owners always know which branch they see. */
 export function TabHeader({ title, actions }: TabHeaderProps) {
-  const restaurantName = useSessionStore((s) => activeMembership(s.session)?.restaurantName);
   return (
     <View style={styles.header}>
       <View style={styles.titles}>
-        {restaurantName && (
-          <Text variant="label" color="textSecondary" numberOfLines={1}>
-            {restaurantName}
-          </Text>
-        )}
+        <BranchSwitcher />
         <Text variant="h1" accessibilityRole="header" numberOfLines={1}>
           {title}
         </Text>

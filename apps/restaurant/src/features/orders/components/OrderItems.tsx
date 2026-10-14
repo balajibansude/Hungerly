@@ -1,14 +1,15 @@
-import type { OrderItem } from '@hungerly/types';
+import type { Order } from '@hungerly/api-client';
 import { Divider, FoodTypeMark, spacing, Text } from '@hungerly/ui';
-import { addMoney, formatMoney } from '@hungerly/utils';
+import { formatMoney } from '@hungerly/utils';
 import { StyleSheet, View } from 'react-native';
+
+type OrderItem = Order['items'][0];
 
 /** Ordered dishes in large type for the kitchen: quantity, options, notes, prices. */
 export function OrderItems({ items }: { items: OrderItem[] }) {
   return (
     <View>
       {items.map((item, index) => {
-        const each = addMoney(item.unitPrice, item.optionsPrice);
         return (
           <View key={item.id}>
             {index > 0 && <Divider />}
@@ -25,11 +26,11 @@ export function OrderItems({ items }: { items: OrderItem[] }) {
                 </View>
                 {item.options.map((option) => (
                   <Text
-                    key={`${option.groupName}:${option.optionName}`}
+                    key={`${option.group}:${option.name}`}
                     variant="bodySmall"
                     color="textSecondary"
                   >
-                    {option.groupName}: {option.optionName}
+                    {option.group}: {option.name}
                     {option.priceDelta.amountMinor > 0
                       ? ` (+${formatMoney(option.priceDelta)})`
                       : ''}
@@ -40,9 +41,6 @@ export function OrderItems({ items }: { items: OrderItem[] }) {
                     Note: {item.notes}
                   </Text>
                 )}
-                <Text variant="metadata" color="textTertiary">
-                  {formatMoney(each)} each
-                </Text>
               </View>
               <Text variant="price">{formatMoney(item.lineTotal)}</Text>
             </View>

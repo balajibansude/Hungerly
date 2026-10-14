@@ -1,10 +1,13 @@
-import type { Money, OrderBill as Bill } from '@hungerly/types';
+import type { Order } from '@hungerly/api-client';
+import type { Money } from '@hungerly/types';
 import { Divider, spacing, Text } from '@hungerly/ui';
 import { formatMoney, isBillConsistent } from '@hungerly/utils';
 import { StyleSheet, View } from 'react-native';
 
+type Bill = Order['bill'];
+
 /** Charges in the order snapshot, in the order customers saw them. Zero charges are hidden. */
-const CHARGES: { key: Exclude<keyof Bill, 'subtotal' | 'discount' | 'total'>; label: string }[] = [
+const CHARGES: { key: Exclude<keyof Bill, 'subtotal' | 'discount' | 'total' | 'restaurantFundedDiscount'>; label: string }[] = [
   { key: 'packagingFee', label: 'Packaging' },
   { key: 'deliveryFee', label: 'Delivery fee' },
   { key: 'platformFee', label: 'Platform fee' },
