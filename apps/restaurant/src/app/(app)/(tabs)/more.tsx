@@ -60,6 +60,7 @@ export default function MoreScreen() {
     {
       title: 'Grow',
       entries: [
+        { icon: 'bar-chart-outline', label: 'Reports & analytics', hint: 'Sales trends and order summaries', href: '/reports' },
         { icon: 'pricetags-outline', label: 'Offers & coupons', hint: 'Create and track coupons', href: '/coupons' },
         { icon: 'star-outline', label: 'Ratings & reviews', hint: 'Read and reply to customers', href: '/reviews' },
       ],
