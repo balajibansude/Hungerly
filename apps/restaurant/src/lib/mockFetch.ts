@@ -19,30 +19,38 @@ const seedOrders = () => {
   }
 };
 
-// Stable demo UUIDs used throughout mock responses (must match @/mock/index.ts constants)
+/**
+ * Stable demo UUIDs — all must be valid RFC 4122 UUIDs (version=4, variant=8) to pass
+ * Zod v4's z.uuid() strict validation. Format: 00000000-0000-4{TYPE}-8000-{SEQ}
+ * TYPE: 0=session, 1=orders, 2=categories, 3=items, 4=reviews, 5=ledger,
+ *       6=payout, 7=newBranch, 8=newUser, 9=closure
+ * Must stay in sync with apps/restaurant/src/mock/index.ts constants.
+ */
 const D = {
-  branch:   'de000000-de00-de00-de00-de0000000001', // = MASALA_JUNCTION_ID
-  user:     'de000000-de00-de00-de00-de0000000002',
-  business: 'de000000-de00-de00-de00-de0000000003',
-  otpReq:   'de000000-de00-de00-de00-de0000000004',
-  ord6q4w:  'de000000-de00-de00-de01-de0000000007', // used in ledger entries
-  ord8d9e:  'de000000-de00-de00-de01-de0000000009', // used in ledger entries
-  catMains: 'de000000-de00-de00-de02-de0000000001',
-  catBread: 'de000000-de00-de00-de02-de0000000002',
-  catSides: 'de000000-de00-de00-de02-de0000000003',
-  itemDM:   'de000000-de00-de00-de03-de0000000001', // Dal Makhani
-  itemCB:   'de000000-de00-de00-de03-de0000000002', // Chicken Biryani
-  itemPK:   'de000000-de00-de00-de03-de0000000003', // Paneer Kadai
-  itemBN:   'de000000-de00-de00-de03-de0000000004', // Butter Naan
-  itemRaita:'de000000-de00-de00-de03-de0000000005', // Raita
-  rev1:     'de000000-de00-de00-de04-de0000000001',
-  rev2:     'de000000-de00-de00-de04-de0000000002',
-  rev3:     'de000000-de00-de00-de04-de0000000003',
-  le1:      'de000000-de00-de00-de05-de0000000001',
-  le2:      'de000000-de00-de00-de05-de0000000002',
-  le3:      'de000000-de00-de00-de05-de0000000003',
-  acct:     'de000000-de00-de00-de06-de0000000001',
-  branchNew:'de000000-de00-de00-de07-de0000000001',
+  branch:    '00000000-0000-4000-8000-000000000001', // = MASALA_JUNCTION_ID
+  user:      '00000000-0000-4000-8000-000000000002',
+  business:  '00000000-0000-4000-8000-000000000003',
+  otpReq:    '00000000-0000-4000-8000-000000000004',
+  ord6q4w:   '00000000-0000-4001-8000-000000000007', // used in ledger entries
+  ord8d9e:   '00000000-0000-4001-8000-000000000009', // used in ledger entries
+  catMains:  '00000000-0000-4002-8000-000000000001',
+  catBread:  '00000000-0000-4002-8000-000000000002',
+  catSides:  '00000000-0000-4002-8000-000000000003',
+  itemDM:    '00000000-0000-4003-8000-000000000001', // Dal Makhani
+  itemCB:    '00000000-0000-4003-8000-000000000002', // Chicken Biryani
+  itemPK:    '00000000-0000-4003-8000-000000000003', // Paneer Kadai
+  itemBN:    '00000000-0000-4003-8000-000000000004', // Butter Naan
+  itemRaita: '00000000-0000-4003-8000-000000000005', // Raita
+  rev1:      '00000000-0000-4004-8000-000000000001',
+  rev2:      '00000000-0000-4004-8000-000000000002',
+  rev3:      '00000000-0000-4004-8000-000000000003',
+  le1:       '00000000-0000-4005-8000-000000000001',
+  le2:       '00000000-0000-4005-8000-000000000002',
+  le3:       '00000000-0000-4005-8000-000000000003',
+  acct:      '00000000-0000-4006-8000-000000000001',
+  branchNew: '00000000-0000-4007-8000-000000000001',
+  userNew:   '00000000-0000-4008-8000-000000000001',
+  closure:   '00000000-0000-4009-8000-000000000001',
 };
 
 let pendingRequestId: string | null = null;
@@ -378,7 +386,7 @@ export async function mockFetch(
     return mockResponse({
       tokens: { accessToken: 'new-access', refreshToken: 'new-refresh', accessExpiresInSeconds: 3600 },
       session: {
-        user: { id: 'de000000-de00-de00-de08-de0000000001', fullName: null, phoneE164: pendingPhone, email: null },
+        user: { id: D.userNew, fullName: null, phoneE164: pendingPhone, email: null },
         business: null,
         branches: [],
       },
@@ -531,7 +539,7 @@ export async function mockFetch(
     if (sub === 'closures') {
       if (method === 'GET') return mockResponse([]);
       if (method === 'POST') {
-        return mockResponse({ id: 'de000000-de00-de00-de09-de0000000001', date: body.date, note: body.note ?? null });
+        return mockResponse({ id: D.closure, date: body.date, note: body.note ?? null });
       }
     }
 
