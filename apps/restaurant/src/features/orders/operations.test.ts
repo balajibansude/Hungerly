@@ -2,7 +2,7 @@ import { ServiceError } from '@hungerly/app-core';
 
 import { clearLocalSession } from '@/features/auth/clearLocalSession';
 import { useSessionStore } from '@/features/auth/session';
-import { MASALA_JUNCTION_ID } from '@/mock';
+import { DEMO_ORDER_NEW, DEMO_ORDER_PREPARING, MASALA_JUNCTION_ID } from '@/mock';
 import type { OrderService, Services } from '@/services';
 import { createMockServices, DEMO_PHONE_E164, PROTOTYPE_OTP } from '@/services/mock';
 
@@ -11,8 +11,8 @@ import { fetchOrder, loadOrders, performOrderAction } from './operations';
 import { useOrdersStore } from './store';
 
 const NOW = new Date('2026-10-02T13:00:00+05:30');
-const NEW_ORDER = 'ord-4k7p2m';
-const PREPARING = 'ord-7r1c9w';
+const NEW_ORDER = DEMO_ORDER_NEW;
+const PREPARING = DEMO_ORDER_PREPARING;
 
 const store = () => useOrdersStore.getState();
 

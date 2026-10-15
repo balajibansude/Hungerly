@@ -19,6 +19,32 @@ const seedOrders = () => {
   }
 };
 
+// Stable demo UUIDs used throughout mock responses (must match @/mock/index.ts constants)
+const D = {
+  branch:   'de000000-de00-de00-de00-de0000000001', // = MASALA_JUNCTION_ID
+  user:     'de000000-de00-de00-de00-de0000000002',
+  business: 'de000000-de00-de00-de00-de0000000003',
+  otpReq:   'de000000-de00-de00-de00-de0000000004',
+  ord6q4w:  'de000000-de00-de00-de01-de0000000007', // used in ledger entries
+  ord8d9e:  'de000000-de00-de00-de01-de0000000009', // used in ledger entries
+  catMains: 'de000000-de00-de00-de02-de0000000001',
+  catBread: 'de000000-de00-de00-de02-de0000000002',
+  catSides: 'de000000-de00-de00-de02-de0000000003',
+  itemDM:   'de000000-de00-de00-de03-de0000000001', // Dal Makhani
+  itemCB:   'de000000-de00-de00-de03-de0000000002', // Chicken Biryani
+  itemPK:   'de000000-de00-de00-de03-de0000000003', // Paneer Kadai
+  itemBN:   'de000000-de00-de00-de03-de0000000004', // Butter Naan
+  itemRaita:'de000000-de00-de00-de03-de0000000005', // Raita
+  rev1:     'de000000-de00-de00-de04-de0000000001',
+  rev2:     'de000000-de00-de00-de04-de0000000002',
+  rev3:     'de000000-de00-de00-de04-de0000000003',
+  le1:      'de000000-de00-de00-de05-de0000000001',
+  le2:      'de000000-de00-de00-de05-de0000000002',
+  le3:      'de000000-de00-de00-de05-de0000000003',
+  acct:     'de000000-de00-de00-de06-de0000000001',
+  branchNew:'de000000-de00-de00-de07-de0000000001',
+};
+
 let pendingRequestId: string | null = null;
 let pendingPhone: string | null = null;
 
@@ -27,9 +53,9 @@ const INR = (minor: number) => ({ amountMinor: minor, currency: 'INR' });
 const ZERO = INR(0);
 
 const DEMO_SESSION = {
-  user: { id: 'user-demo', fullName: 'Demo Owner', phoneE164: DEMO_PHONE_E164, email: null },
+  user: { id: D.user, fullName: 'Demo Owner', phoneE164: DEMO_PHONE_E164, email: null },
   business: {
-    id: 'biz-demo',
+    id: D.business,
     displayName: 'Masala Junction',
     legalName: 'Masala Junction Foods Pvt Ltd',
     entityType: 'company',
@@ -37,7 +63,7 @@ const DEMO_SESSION = {
   },
   branches: [
     {
-      id: MASALA_JUNCTION_ID,
+      id: D.branch,
       name: 'Masala Junction - Main Branch',
       locality: 'Koregaon Park',
       city: 'Pune',
@@ -50,7 +76,7 @@ const DEMO_SESSION = {
 const DEMO_BRANCH_DETAIL = {
   branch: {
     id: MASALA_JUNCTION_ID,
-    businessId: 'biz-demo',
+    businessId: D.business,
     name: 'Masala Junction - Main Branch',
     description: 'Authentic North Indian cuisine in the heart of Koregaon Park.',
     cuisines: ['North Indian', 'Mughlai'],
@@ -116,14 +142,14 @@ const DEMO_BRANCH_DETAIL = {
 const DEMO_MENU = {
   categories: [
     {
-      id: 'cat-mains',
+      id: D.catMains,
       name: 'Mains',
       sortOrder: 0,
       isActive: true,
       items: [
         {
-          id: 'item-dm',
-          categoryId: 'cat-mains',
+          id: D.itemDM,
+          categoryId: D.catMains,
           name: 'Dal Makhani',
           description: 'Slow-cooked black lentils, cream and butter.',
           price: INR(28000),
@@ -137,8 +163,8 @@ const DEMO_MENU = {
           updatedAt: '2026-10-01T12:00:00.000Z',
         },
         {
-          id: 'item-cb',
-          categoryId: 'cat-mains',
+          id: D.itemCB,
+          categoryId: D.catMains,
           name: 'Chicken Biryani',
           description: 'Fragrant basmati rice with spiced chicken.',
           price: INR(24000),
@@ -152,8 +178,8 @@ const DEMO_MENU = {
           updatedAt: '2026-10-01T12:00:00.000Z',
         },
         {
-          id: 'item-pk',
-          categoryId: 'cat-mains',
+          id: D.itemPK,
+          categoryId: D.catMains,
           name: 'Paneer Kadai',
           description: 'Cottage cheese cooked with peppers and spices.',
           price: INR(22000),
@@ -169,14 +195,14 @@ const DEMO_MENU = {
       ],
     },
     {
-      id: 'cat-breads',
+      id: D.catBread,
       name: 'Breads',
       sortOrder: 1,
       isActive: true,
       items: [
         {
-          id: 'item-bn',
-          categoryId: 'cat-breads',
+          id: D.itemBN,
+          categoryId: D.catBread,
           name: 'Butter Naan',
           description: 'Soft leavened bread with butter.',
           price: INR(5000),
@@ -192,14 +218,14 @@ const DEMO_MENU = {
       ],
     },
     {
-      id: 'cat-sides',
+      id: D.catSides,
       name: 'Sides & Drinks',
       sortOrder: 2,
       isActive: true,
       items: [
         {
-          id: 'item-raita',
-          categoryId: 'cat-sides',
+          id: D.itemRaita,
+          categoryId: D.catSides,
           name: 'Raita',
           description: 'Chilled yogurt with cucumber and herbs.',
           price: INR(6000),
@@ -219,8 +245,8 @@ const DEMO_MENU = {
 
 const DEMO_REVIEWS = [
   {
-    id: 'rev-001',
-    branchId: MASALA_JUNCTION_ID,
+    id: D.rev1,
+    branchId: D.branch,
     rating: 5,
     comment: 'Dal Makhani was absolutely amazing. Will order again!',
     customerName: 'Priya',
@@ -231,8 +257,8 @@ const DEMO_REVIEWS = [
     isDevFixture: true,
   },
   {
-    id: 'rev-002',
-    branchId: MASALA_JUNCTION_ID,
+    id: D.rev2,
+    branchId: D.branch,
     rating: 4,
     comment: 'Good food, slightly late delivery but the taste made up for it.',
     customerName: 'Rahul',
@@ -248,8 +274,8 @@ const DEMO_REVIEWS = [
     isDevFixture: true,
   },
   {
-    id: 'rev-003',
-    branchId: MASALA_JUNCTION_ID,
+    id: D.rev3,
+    branchId: D.branch,
     rating: 3,
     comment: 'Average. Nothing special.',
     customerName: 'Anita',
@@ -304,7 +330,7 @@ export async function mockFetch(
   // Auth
   // -----------------------------------------------------------------------
   if (method === 'POST' && p === '/auth/otp/request') {
-    pendingRequestId = 'req-mock-001';
+    pendingRequestId = D.otpReq;
     pendingPhone = body.phoneE164 ?? body.email ?? null;
     return mockResponse({
       requestId: pendingRequestId,
@@ -328,7 +354,7 @@ export async function mockFetch(
     return mockResponse({
       tokens: { accessToken: 'new-access', refreshToken: 'new-refresh', accessExpiresInSeconds: 3600 },
       session: {
-        user: { id: 'user-new', fullName: null, phoneE164: pendingPhone, email: null },
+        user: { id: 'de000000-de00-de00-de08-de0000000001', fullName: null, phoneE164: pendingPhone, email: null },
         business: null,
         branches: [],
       },
@@ -403,8 +429,8 @@ export async function mockFetch(
 
   if (method === 'POST' && p === '/partner/branches') {
     return mockResponse({
-      id: 'branch-new',
-      businessId: 'biz-demo',
+      id: D.branchNew,
+      businessId: D.business,
       name: body.name ?? 'New Branch',
       description: '',
       cuisines: [],
@@ -516,7 +542,7 @@ export async function mockFetch(
       if (method === 'PUT') {
         return mockResponse({
           current: {
-            id: 'acct-demo',
+            id: D.acct,
             branchId,
             accountHolderName: body.accountHolderName,
             accountNumberLast4: (body.accountNumber as string)?.slice(-4) ?? '0000',
@@ -581,9 +607,9 @@ export async function mockFetch(
       if (!isDemoB) return mockResponse({ items: [], nextCursor: null });
       return mockResponse({
         items: [
-          { id: 'le-001', type: 'order_earning', amount: INR(28700), description: 'Order HGR-6Q4W1Z', orderId: 'ord-6q4w1z', orderNumber: 'HGR-6Q4W1Z', payoutId: null, availableAt: '2026-10-09T00:00:00.000Z', createdAt: '2026-10-02T09:00:00.000Z' },
-          { id: 'le-002', type: 'commission', amount: INR(-5166), description: 'Commission HGR-6Q4W1Z', orderId: 'ord-6q4w1z', orderNumber: 'HGR-6Q4W1Z', payoutId: null, availableAt: '2026-10-09T00:00:00.000Z', createdAt: '2026-10-02T09:00:00.000Z' },
-          { id: 'le-003', type: 'order_earning', amount: INR(24500), description: 'Order HGR-8D9E0F', orderId: 'ord-8d9e0f', orderNumber: 'HGR-8D9E0F', payoutId: null, availableAt: '2026-10-09T00:00:00.000Z', createdAt: '2026-10-02T07:30:00.000Z' },
+          { id: D.le1, type: 'order_earning', amount: INR(28700), description: 'Order HGR-6Q4W1Z', orderId: D.ord6q4w, orderNumber: 'HGR-6Q4W1Z', payoutId: null, availableAt: '2026-10-09T00:00:00.000Z', createdAt: '2026-10-02T09:00:00.000Z' },
+          { id: D.le2, type: 'commission', amount: INR(-5166), description: 'Commission HGR-6Q4W1Z', orderId: D.ord6q4w, orderNumber: 'HGR-6Q4W1Z', payoutId: null, availableAt: '2026-10-09T00:00:00.000Z', createdAt: '2026-10-02T09:00:00.000Z' },
+          { id: D.le3, type: 'order_earning', amount: INR(24500), description: 'Order HGR-8D9E0F', orderId: D.ord8d9e, orderNumber: 'HGR-8D9E0F', payoutId: null, availableAt: '2026-10-09T00:00:00.000Z', createdAt: '2026-10-02T07:30:00.000Z' },
         ],
         nextCursor: null,
       });
