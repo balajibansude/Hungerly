@@ -7,6 +7,8 @@ import {
 } from '@hungerly/api-client';
 import * as SecureStore from 'expo-secure-store';
 
+import { mockFetch } from './mockFetch';
+
 /**
  * The single REST client for the app. Every screen talks to the Swaadone API through it
  * (via the hooks in `@/lib/hooks`); there is no mock data path.
@@ -62,8 +64,12 @@ async function refreshTokens(): Promise<boolean> {
   }
 }
 
+/** True when no real backend URL is configured — prototype mode uses mock responses. */
+export const IS_PROTOTYPE_MODE = !API_BASE_URL;
+
 const client: ApiClient = createApiClient({
-  baseUrl: API_BASE_URL ?? 'http://api-url-not-configured.invalid/api/v1',
+  baseUrl: API_BASE_URL ?? 'http://prototype.swaadone.invalid/api/v1',
+  fetchImpl: IS_PROTOTYPE_MODE ? mockFetch : undefined,
   tokens: {
     getAccessToken: () => accessToken,
     refresh: () => {
