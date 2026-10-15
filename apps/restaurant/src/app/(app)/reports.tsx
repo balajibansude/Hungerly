@@ -114,7 +114,7 @@ export default function ReportsScreen() {
             {/* Today's orders */}
             <Card style={styles.section}>
               <Text variant="label" color="textSecondary">
-                TODAY'S ORDERS
+                TODAY&apos;S ORDERS
               </Text>
               <View style={styles.todayGrid}>
                 <OrderCount label="Placed" value={dash.orderCounts.placed} color={colors.warning} />
@@ -126,7 +126,7 @@ export default function ReportsScreen() {
               </View>
               <View style={styles.salesRow}>
                 <Text variant="body" color="textSecondary">
-                  Today's gross sales
+                  Today&apos;s gross sales
                 </Text>
                 <Text variant="price">{formatMoney(dash.grossSalesToday)}</Text>
               </View>

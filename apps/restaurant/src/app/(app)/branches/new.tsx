@@ -21,7 +21,6 @@ import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   View,
@@ -484,7 +483,7 @@ function Step6Review({
         <Text variant="label" color="textSecondary">STEP 6 OF {TOTAL_STEPS}</Text>
         <Text variant="h2">Review & submit</Text>
         <Text variant="body" color="textSecondary">
-          Swaadone will review your restaurant. You'll be notified once approved — usually within 1–2 business days.
+          Swaadone will review your restaurant. You&apos;ll be notified once approved — usually within 1–2 business days.
         </Text>
       </View>
 
