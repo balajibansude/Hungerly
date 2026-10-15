@@ -291,12 +291,35 @@ const DEMO_REVIEWS = [
 // Route matcher
 // ---------------------------------------------------------------------------
 
+/**
+ * Returns a duck-typed Response-like object.
+ * We avoid `new Response(body, init)` because React Native 0.86's native C++ Fetch
+ * implementation may not support the constructor with a string body correctly.
+ * The api-client only reads .ok, .status, .json(), and .text() from a Response.
+ */
 function mockResponse(body: unknown, status = 200): Response {
-  const json = JSON.stringify(body);
-  return new Response(json, {
+  if (__DEV__) {
+    // Confirm mock layer is active — visible in Metro logs, no secrets logged.
+    console.warn('[MockFetch] response', status);
+  }
+  return {
+    ok: status >= 200 && status < 300,
     status,
-    headers: { 'Content-Type': 'application/json' },
-  });
+    statusText: '',
+    headers: { get: () => 'application/json' },
+    redirected: false,
+    type: 'default',
+    url: '',
+    body: null,
+    bodyUsed: false,
+    json: () => Promise.resolve(body),
+    text: () => Promise.resolve(JSON.stringify(body)),
+    arrayBuffer: () => Promise.reject(new Error('Not supported')),
+    blob: () => Promise.reject(new Error('Not supported')),
+    formData: () => Promise.reject(new Error('Not supported')),
+    clone: () => mockResponse(body, status),
+    bytes: () => Promise.reject(new Error('Not supported')),
+  } as unknown as Response;
 }
 
 function errorResponse(status: number, code: string, message: string): Response {
@@ -320,6 +343,7 @@ export async function mockFetch(
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
   const method = (init?.method ?? 'GET').toUpperCase();
   const path = parsePath(url);
+  if (__DEV__) console.warn('[MockFetch]', method, path);
 
   // Strip /api/v1 prefix if present
   const p = path.replace(/^\/api\/v1/, '');
@@ -507,7 +531,7 @@ export async function mockFetch(
     if (sub === 'closures') {
       if (method === 'GET') return mockResponse([]);
       if (method === 'POST') {
-        return mockResponse({ id: `closure-${Date.now()}`, date: body.date, note: body.note ?? null });
+        return mockResponse({ id: 'de000000-de00-de00-de09-de0000000001', date: body.date, note: body.note ?? null });
       }
     }
 
