@@ -1,4 +1,5 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
+import { useShallow } from 'zustand/shallow';
 
 import { useActiveBranch } from '@/features/branch/useActiveBranch';
 import { useServices } from '@/services';
@@ -15,7 +16,10 @@ export function useOrderBoard() {
   const { orders: service } = useServices();
   const load = useOrdersStore((s) => s.load);
   const refreshing = useOrdersStore((s) => s.refreshing);
-  const orders = useOrdersStore((s) => Object.values(s.byId));
+  // useShallow prevents a new array reference on every snapshot call. Without it,
+  // Object.values() would always return a new array and React would throw
+  // "The result of getSnapshot should be cached to avoid an infinite loop."
+  const orders = useOrdersStore(useShallow((s) => Object.values(s.byId)));
 
   const doLoad = useCallback(
     (mode: 'initial' | 'refresh') => {
@@ -27,6 +31,13 @@ export function useOrderBoard() {
 
   const refresh = useCallback(() => doLoad('refresh'), [doLoad]);
   const retry = useCallback(() => doLoad('initial'), [doLoad]);
+
+  // Trigger the initial fetch on mount and whenever the active branch changes.
+  // doLoad is recreated only when branchId or service change, so this effect runs
+  // exactly when a new restaurant context is entered — not on every render.
+  useEffect(() => {
+    doLoad('initial');
+  }, [doLoad]);
 
   usePolling(refresh);
 

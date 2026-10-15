@@ -17,12 +17,18 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// UUIDs must be RFC 4122-valid (version nibble=4, variant nibble=8..b) to pass z.uuid().
+// These match the D.* constants in src/lib/mockFetch.ts.
+const DEMO_USER_ID    = '00000000-0000-4000-8000-000000000002';
+const DEMO_BIZ_ID     = '00000000-0000-4000-8000-000000000003';
+const DEMO_OTP_REQ_ID = '00000000-0000-4000-8000-000000000004';
+
 const DEMO_SESSION: SignInResponse = {
   tokens: { accessToken: 'demo-access', refreshToken: 'demo-refresh', accessExpiresInSeconds: 3600 },
   session: {
-    user: { id: 'user-demo', fullName: 'Demo Owner', phoneE164: DEMO_PHONE_E164, email: null },
+    user: { id: DEMO_USER_ID, fullName: 'Demo Owner', phoneE164: DEMO_PHONE_E164, email: null },
     business: {
-      id: 'biz-demo',
+      id: DEMO_BIZ_ID,
       displayName: 'Masala Junction',
       legalName: 'Masala Junction Foods Pvt Ltd',
       entityType: 'company',
@@ -161,11 +167,11 @@ export function createMockServices(options: MockServicesOptions = {}): Services 
   const auth: Services['auth'] = {
     async requestOtp(_input) {
       await wait();
-      return { requestId: 'req-demo-001' };
+      return { requestId: DEMO_OTP_REQ_ID };
     },
     async verifyOtp(requestId, otp) {
       await wait();
-      if (requestId !== 'req-demo-001' || otp !== PROTOTYPE_OTP) {
+      if (requestId !== DEMO_OTP_REQ_ID || otp !== PROTOTYPE_OTP) {
         throw new ApiError(401, 'auth.otp_invalid', 'Invalid or expired OTP.');
       }
       return DEMO_SESSION;
