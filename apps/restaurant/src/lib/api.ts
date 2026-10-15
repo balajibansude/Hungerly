@@ -64,8 +64,9 @@ async function refreshTokens(): Promise<boolean> {
   }
 }
 
-/** True when no real backend URL is configured — prototype mode uses mock responses. */
-export const IS_PROTOTYPE_MODE = !API_BASE_URL;
+/** True when no real backend URL is configured, or when EXPO_PUBLIC_USE_MOCK=true. */
+export const IS_PROTOTYPE_MODE =
+  !API_BASE_URL || process.env.EXPO_PUBLIC_USE_MOCK === 'true';
 
 const client: ApiClient = createApiClient({
   baseUrl: API_BASE_URL ?? 'http://prototype.swaadone.invalid/api/v1',
