@@ -2,6 +2,7 @@
   "name": "@hungerly/utils",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Framework-free helpers shared by Hungerly apps (money, formatting, phone numbers).",
   "main": "src/index.ts",
   "types": "src/index.ts",

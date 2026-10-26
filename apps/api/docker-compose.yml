@@ -1,0 +1,20 @@
+# Local PostgreSQL for the API. Credentials come from apps/api/.env (POSTGRES_PASSWORD).
+#   docker compose --env-file .env up -d --wait
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: hungerly
+      POSTGRES_DB: hungerly
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    ports:
+      - '127.0.0.1:5433:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U hungerly -d hungerly']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  pgdata:

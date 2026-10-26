@@ -1,0 +1,8 @@
+{
+  "extends": "@hungerly/config/tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
+    "types": ["jest"]
+  },
+  "include": ["src"]
+}

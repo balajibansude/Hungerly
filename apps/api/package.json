@@ -1,0 +1,49 @@
+{
+  "name": "@hungerly/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hungerly/Swaadone REST API (restaurant partner, admin review, payouts). Fastify + PostgreSQL.",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env src/server.ts",
+    "start": "node --env-file-if-exists=.env dist/server.js",
+    "build": "tsup",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx --env-file-if-exists=.env scripts/migrate.ts",
+    "env:generate": "tsx scripts/generate-env.ts",
+    "admin:create": "tsx --env-file-if-exists=.env scripts/create-admin.ts",
+    "seed:dev": "tsx --env-file-if-exists=.env scripts/seed-dev.ts",
+    "payouts:reconcile": "tsx --env-file-if-exists=.env scripts/reconcile-payouts.ts",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.3.1",
+    "@fastify/helmet": "^13.1.2",
+    "@fastify/multipart": "^10.1.3",
+    "@fastify/rate-limit": "^11.2.1",
+    "@hungerly/api-client": "workspace:*",
+    "@hungerly/types": "workspace:*",
+    "@hungerly/utils": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "fastify": "^5.12.5",
+    "fastify-type-provider-zod": "^7.0.0",
+    "jose": "^6.2.12",
+    "pg": "^8.23.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@hungerly/config": "workspace:*",
+    "@types/node": "^24.19.0",
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.11",
+    "eslint": "^9.39.5",
+    "pino-pretty": "^13.2.0",
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.3"
+  }
+}

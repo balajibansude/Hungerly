@@ -5,3 +5,5 @@ export * from './email';
 export * from './address';
 export * from './hours';
 export * from './orders';
+export * from './availability';
+export * from './coupons';
