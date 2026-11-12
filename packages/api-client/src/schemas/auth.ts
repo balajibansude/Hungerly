@@ -95,6 +95,30 @@ export const SignInResponseSchema = z.object({
 });
 export type SignInResponse = z.infer<typeof SignInResponseSchema>;
 
+/** Customer-app sign-in (`customer` session audience). No partner data. */
+export const CustomerSignInResponseSchema = z.object({
+  tokens: TokenPairSchema,
+  customer: z.object({
+    user: PartnerUserSchema,
+    /** True for a first-time identity or one without a saved name: the app asks for it. */
+    isNewUser: z.boolean(),
+  }),
+});
+export type CustomerSignInResponse = z.infer<typeof CustomerSignInResponseSchema>;
+
+/** The signed-in customer's own profile (`GET/PATCH /customer/me`). No status or role. */
+export const CustomerProfileSchema = PartnerUserSchema;
+export type CustomerProfile = z.infer<typeof CustomerProfileSchema>;
+
+/**
+ * Customer profile update. Strict: only the name can change here. Email and phone are
+ * sign-in identities and need a verification flow; id, role and status are never editable.
+ */
+export const UpdateCustomerProfileSchema = z.strictObject({
+  fullName: z.string().trim().min(2).max(80),
+});
+export type UpdateCustomerProfile = z.infer<typeof UpdateCustomerProfileSchema>;
+
 export const UpdateProfileSchema = z.object({
   fullName: z.string().trim().min(2).max(80),
 });

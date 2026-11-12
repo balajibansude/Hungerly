@@ -17,8 +17,12 @@ export interface Money {
   currency: CurrencyCode;
 }
 
-/** Matches `menu_items.food_type`. */
-export type FoodType = 'veg' | 'non_veg' | 'egg';
+/**
+ * Matches `menu_items.food_type`. `jain` is a proposed addition to the schema's CHECK
+ * (`veg`, `non_veg`, `egg`): a dish the restaurant explicitly marks as Jain (no onion,
+ * garlic or root vegetables). It is never inferred from `veg` or from the dish name.
+ */
+export type FoodType = 'veg' | 'non_veg' | 'egg' | 'jain';
 
 export interface ImageRef {
   uri: string;
@@ -41,11 +45,13 @@ export interface RatingSummary {
   count: number;
 }
 
+/** A cuisine (`cuisines` table, `GET /catalog/cuisines`). */
 export interface Category {
   id: Id;
   slug: string;
   name: string;
-  image: ImageRef;
+  /** Optional: a cuisine without artwork shows a neutral fallback. */
+  image?: ImageRef;
 }
 
 /** 1 = budget, 2 = moderate, 3 = premium. Shown as ₹, ₹₹, ₹₹₹. */
@@ -64,6 +70,11 @@ export interface Offer {
   code?: string;
   restaurantId?: Id;
   rule: DiscountRule;
+  /** Mirrors `coupons.first_order_only`. */
+  firstOrderOnly?: boolean;
+  /** Validity window (`coupons.starts_at` / `ends_at`), ISO 8601. Omitted when unknown. */
+  startsAt?: string;
+  endsAt?: string;
 }
 
 export interface RestaurantSummary {
@@ -71,14 +82,34 @@ export interface RestaurantSummary {
   slug: string;
   name: string;
   cuisines: string[];
+  /** Cover photo (`cover_url`). */
   image: ImageRef;
+  /** Brand logo (`logo_url`); absent until the restaurant uploads one. */
+  logo?: ImageRef;
   rating: RatingSummary;
   deliveryTimeMinutes: Range;
   distanceMeters: number;
   priceLevel: PriceLevel;
   costForTwo: Money;
+  /**
+   * Lowest price on the menu, for "From ₹…" labels. Not yet in the API blueprint's listing
+   * response (proposed addition to `GET /catalog/restaurants`); omitted when unknown.
+   */
+  startingPrice?: Money;
   isOpen: boolean;
+  /**
+   * Next opening time while closed, "HH:MM" in the restaurant's timezone. Derived by the
+   * server from `restaurant_hours`; proposed addition to the listing response. Omitted
+   * when open or when the restaurant has no upcoming slot.
+   */
+  opensAt?: LocalTime;
   isPureVeg: boolean;
+  /**
+   * True when the restaurant explicitly marks at least one menu item as Jain
+   * (no onion, garlic or root vegetables). Never inferred from the dish name.
+   * Proposed addition to the listing response.
+   */
+  hasJainItems?: boolean;
   offer?: Offer;
 }
 
@@ -111,6 +142,11 @@ export interface Food {
   name: string;
   description: string;
   price: Money;
+  /**
+   * Price before a dish-level deal, shown struck through. Proposed addition
+   * (`menu_items.compare_at_price_minor`); omitted when the dish has no deal.
+   */
+  originalPrice?: Money;
   foodType: FoodType;
   image?: ImageRef;
   rating?: RatingSummary;
@@ -182,6 +218,12 @@ export interface OrderLine {
   lineTotal: Money;
 }
 
+/**
+ * The delivery address as it was when the order was placed. A copy, not a link: editing or
+ * removing the saved address later never changes where an existing order goes.
+ */
+export type OrderDeliveryAddress = Omit<Address, 'id'>;
+
 export interface OrderSummary {
   id: Id;
   orderNumber: string;
@@ -191,11 +233,15 @@ export interface OrderSummary {
   lines: OrderLine[];
   total: Money;
   placedAt: string;
+  /** Optional: orders created before addresses were attached have none. */
+  deliveryAddress?: OrderDeliveryAddress;
 }
 
 export interface User {
   id: Id;
   phoneE164: string;
+  /** Set once the phone number was confirmed by OTP (`users.phone_verified_at`). */
+  phoneVerifiedAt?: string | null;
   fullName: string | null;
   email: string | null;
 }

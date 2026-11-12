@@ -114,8 +114,11 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         body,
         signal: controller.signal,
       });
-    } catch {
-      throw new ApiError(0, 'network', 'Could not reach the server. Check your connection.');
+    } catch (cause) {
+      // Keep the underlying failure (e.g. an unsupported request body) for diagnostics.
+      const error = new ApiError(0, 'network', 'Could not reach the server. Check your connection.');
+      error.cause = cause;
+      throw error;
     } finally {
       clearTimeout(timer);
     }

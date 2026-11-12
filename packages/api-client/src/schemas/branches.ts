@@ -28,6 +28,10 @@ export const UpsertBusinessSchema = z.object({
 });
 export type UpsertBusiness = z.infer<typeof UpsertBusinessSchema>;
 
+/** Partial edit of an existing business (PATCH); creating one goes through PUT. */
+export const UpdateBusinessSchema = UpsertBusinessSchema.partial();
+export type UpdateBusiness = z.infer<typeof UpdateBusinessSchema>;
+
 // --- Branch -------------------------------------------------------------------------
 
 export const LocationSourceSchema = z.enum(['map_pin', 'device', 'search', 'manual']);

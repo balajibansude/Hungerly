@@ -5,6 +5,7 @@ import {
   TextInput,
   View,
   type StyleProp,
+  type TextInputInstance,
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
@@ -25,7 +26,7 @@ export interface TextFieldProps extends Omit<TextInputProps, 'style' | 'placehol
   containerStyle?: StyleProp<ViewStyle>;
 }
 
-export const TextField = forwardRef<TextInput, TextFieldProps>(function TextField(
+export const TextField = forwardRef<TextInputInstance, TextFieldProps>(function TextField(
   {
     label,
     hideLabel = false,
@@ -42,10 +43,10 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
   ref,
 ) {
   const [focused, setFocused] = useState(false);
-  const inputRef = useRef<TextInput>(null);
-  useImperativeHandle(ref, () => inputRef.current as TextInput, []);
+  const inputRef = useRef<TextInputInstance>(null);
+  useImperativeHandle(ref, () => inputRef.current as TextInputInstance, []);
   const hasError = Boolean(errorText);
-  const borderColor = hasError ? colors.error : focused ? colors.focus : colors.border;
+  const borderColor = hasError ? colors.error : focused ? colors.focus : colors.surfaceMuted;
   // The label and the whole field box focus the input: a larger, more forgiving target.
   const focusInput = () => inputRef.current?.focus();
 
@@ -77,7 +78,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
           accessibilityLabel={label}
           accessibilityHint={errorText ?? helperText}
           maxFontSizeMultiplier={maxFontSizeMultiplier}
-          placeholderTextColor={colors.textTertiary}
+          placeholderTextColor={colors.textMuted}
           selectionColor={colors.primary}
           onFocus={(event) => {
             setFocused(true);
@@ -114,9 +115,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     borderRadius: radius.input,
     borderWidth: 1.5,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceMuted,
   },
-  focused: { backgroundColor: colors.surface },
+  focused: { backgroundColor: colors.primarySoft },
   disabled: { backgroundColor: colors.surfaceMuted },
   input: {
     flex: 1,

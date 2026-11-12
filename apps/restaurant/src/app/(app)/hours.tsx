@@ -20,7 +20,8 @@ import { useApiQuery, useMutation } from '@/lib/hooks';
 import { QueryView } from '@/features/shell/ScreenState';
 import { formatIstDateTime } from '@/features/wallet/format';
 
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+// ISO weekday order used by the API: 0 = Monday … 6 = Sunday.
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const STATE_TONE = {
   open: 'success',

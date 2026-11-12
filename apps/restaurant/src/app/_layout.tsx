@@ -60,6 +60,11 @@ export default function RootLayout() {
               <Stack.Screen name="(onboarding)" options={{ animation: 'fade' }} />
             </Stack.Protected>
 
+            {/* Submitted for review, nothing approved yet: wait for the admin decision. */}
+            <Stack.Protected guard={access.awaitingApproval}>
+              <Stack.Screen name="pending" options={{ animation: 'fade' }} />
+            </Stack.Protected>
+
             <Stack.Protected guard={access.hasWorkspace}>
               <Stack.Screen name="(app)" options={{ animation: 'fade' }} />
             </Stack.Protected>

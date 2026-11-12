@@ -1,6 +1,6 @@
 import { and, desc, eq, gt, isNull, or } from 'drizzle-orm';
 
-import type { OtpRequest, PartnerSession } from '@hungerly/api-client';
+import type { CustomerProfile, CustomerSignInResponse, OtpRequest, PartnerSession } from '@hungerly/api-client';
 
 import type { AppDeps } from '../../app';
 import type { Audience } from '../../auth/tokens';
@@ -49,6 +49,8 @@ export async function requestOtp(deps: AppDeps, request: OtpRequest, ip: string 
       codeHash: hmacHex(config.TOKEN_HASH_SECRET, `${identifier}:${code}`),
       expiresAt: new Date(now.getTime() + OTP_TTL_SECONDS * 1000),
       ip,
+      // Same clock as the resend/window checks above (not the database's default now()).
+      createdAt: now,
     })
     .returning({ id: otpChallenges.id });
   await otpSender.send(request.channel, identifier, code);
@@ -79,20 +81,15 @@ async function issueSession(deps: AppDeps, db: Db, userId: string, audience: Aud
 
 export { issueSession };
 
+type OtpChallengeRow = typeof otpChallenges.$inferSelect;
+type UserRow = typeof users.$inferSelect;
+
 /**
- * Verifies a code and signs in. A first-time identity becomes a new user with a
- * restaurant *owner* partner account — the only role the partner app grants. Existing
- * users without a partner account (e.g. customers) also get an owner partner account;
- * existing legacy non-owner partner rows are left untouched and refused by the guard.
+ * Checks a code against its challenge: unknown/used, expiry, attempt limit, then the code
+ * itself (a wrong code counts an attempt). Shared by every OTP sign-in; app-agnostic.
  */
-export async function verifyOtp(
-  deps: AppDeps,
-  input: { requestId: string; code: string },
-  userAgent: string | null,
-  ip: string | null,
-) {
-  const { db, clock, config } = deps;
-  const now = clock();
+async function checkOtpCode(deps: AppDeps, input: { requestId: string; code: string }, now: Date): Promise<OtpChallengeRow> {
+  const { db, config } = deps;
   const [challenge] = await db.select().from(otpChallenges).where(eq(otpChallenges.id, input.requestId)).limit(1);
   if (!challenge || challenge.consumedAt) {
     throw unauthenticated('This code is no longer valid. Request a new one.');
@@ -110,25 +107,58 @@ export async function verifyOtp(
     await db.update(otpChallenges).set({ attempts: challenge.attempts + 1 }).where(eq(otpChallenges.id, challenge.id));
     throw new AppError(401, 'auth.otp_invalid', 'That code is not right. Check it and try again.');
   }
+  return challenge;
+}
+
+/**
+ * Inside the sign-in transaction: consumes the challenge exactly once, then finds or
+ * creates the user for its phone/email. Inactive users are refused. Grants no app role.
+ */
+async function consumeOtpAndResolveUser(
+  tx: Db,
+  challenge: OtpChallengeRow,
+  now: Date,
+): Promise<{ user: UserRow; isNew: boolean }> {
+  const consumed = await tx
+    .update(otpChallenges)
+    .set({ consumedAt: now })
+    .where(and(eq(otpChallenges.id, challenge.id), isNull(otpChallenges.consumedAt)))
+    .returning({ id: otpChallenges.id });
+  if (consumed.length === 0) throw unauthenticated('This code was already used. Request a new one.');
+
+  const byIdentity =
+    challenge.channel === 'phone' ? eq(users.phoneE164, challenge.identifier) : eq(users.email, challenge.identifier);
+  let [user] = await tx.select().from(users).where(byIdentity).limit(1);
+  let isNew = false;
+  if (!user) {
+    [user] = await tx
+      .insert(users)
+      .values(challenge.channel === 'phone' ? { phoneE164: challenge.identifier } : { email: challenge.identifier })
+      .returning();
+    isNew = true;
+  }
+  if (user!.status !== 'active') throw new AppError(403, 'forbidden', 'This account is not active.');
+  return { user: user!, isNew };
+}
+
+/**
+ * Verifies a code and signs in. A first-time identity becomes a new user with a
+ * restaurant *owner* partner account — the only role the partner app grants. Existing
+ * users without a partner account (e.g. customers) also get an owner partner account;
+ * existing legacy non-owner partner rows are left untouched and refused by the guard.
+ */
+export async function verifyOtp(
+  deps: AppDeps,
+  input: { requestId: string; code: string },
+  userAgent: string | null,
+  ip: string | null,
+) {
+  const { db, clock } = deps;
+  const now = clock();
+  const challenge = await checkOtpCode(deps, input, now);
 
   return db.transaction(async (tx) => {
-    const consumed = await tx
-      .update(otpChallenges)
-      .set({ consumedAt: now })
-      .where(and(eq(otpChallenges.id, challenge.id), isNull(otpChallenges.consumedAt)))
-      .returning({ id: otpChallenges.id });
-    if (consumed.length === 0) throw unauthenticated('This code was already used. Request a new one.');
-
-    const byIdentity =
-      challenge.channel === 'phone' ? eq(users.phoneE164, challenge.identifier) : eq(users.email, challenge.identifier);
-    let [user] = await tx.select().from(users).where(byIdentity).limit(1);
-    if (!user) {
-      [user] = await tx
-        .insert(users)
-        .values(challenge.channel === 'phone' ? { phoneE164: challenge.identifier } : { email: challenge.identifier })
-        .returning();
-    }
-    if (user!.status !== 'active') throw new AppError(403, 'forbidden', 'This account is not active.');
+    const { user } = await consumeOtpAndResolveUser(tx, challenge, now);
     const created = await tx
       .insert(partnerAccounts)
       .values({ userId: user!.id, role: 'owner' })
@@ -146,6 +176,33 @@ export async function verifyOtp(
     }
     const tokens = await issueSession(deps, tx, user!.id, 'partner', userAgent);
     return { tokens, session: await loadPartnerSession(tx, user!.id) };
+  });
+}
+
+/**
+ * Customer-app sign-in. Same code checks and user resolution as `verifyOtp`, but issues a
+ * `customer` session and never creates a partner account. `isNewUser` tells the app to
+ * ask for the customer's name (new identity, or no name saved yet).
+ */
+export async function verifyCustomerOtp(
+  deps: AppDeps,
+  input: { requestId: string; code: string },
+  userAgent: string | null,
+): Promise<CustomerSignInResponse> {
+  const { db, clock } = deps;
+  const now = clock();
+  const challenge = await checkOtpCode(deps, input, now);
+
+  return db.transaction(async (tx) => {
+    const { user, isNew } = await consumeOtpAndResolveUser(tx, challenge, now);
+    const tokens = await issueSession(deps, tx, user.id, 'customer', userAgent);
+    return {
+      tokens,
+      customer: {
+        user: { id: user.id, fullName: user.fullName, phoneE164: user.phoneE164, email: user.email },
+        isNewUser: isNew || !user.fullName,
+      },
+    };
   });
 }
 
@@ -192,6 +249,17 @@ export async function revokeSession(db: Db, sessionId: string, now: Date) {
     .update(authSessions)
     .set({ revokedAt: now, revokedReason: 'logout' })
     .where(and(eq(authSessions.id, sessionId), isNull(authSessions.revokedAt)));
+}
+
+/** The customer's own profile: identity fields only (no status, role or timestamps). */
+export async function loadCustomerProfile(db: Db, userId: string): Promise<CustomerProfile> {
+  const [user] = await db
+    .select({ id: users.id, fullName: users.fullName, phoneE164: users.phoneE164, email: users.email })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!user) throw unauthenticated();
+  return user;
 }
 
 export async function loadPartnerSession(db: Db, userId: string): Promise<PartnerSession> {

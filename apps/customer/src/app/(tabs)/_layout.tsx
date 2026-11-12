@@ -1,4 +1,4 @@
-import { colors, Icon, spacing, typography, type IconName } from '@hungerly/ui';
+import { colors, elevation, Icon, spacing, typography, type IconName } from '@hungerly/ui';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -21,8 +21,8 @@ function tabIcon(active: IconName, inactive: IconName) {
 }
 
 /**
- * Four destinations only: Home, Search, Orders, Account. The cart is not a tab — it is a
- * floating bar that appears when it has items, so it never competes for attention empty.
+ * Five destinations: Home, Search, Offers, Orders, Profile. The cart is not a tab — it is
+ * a floating bar that appears when it has items, so it never competes for attention empty.
  */
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
@@ -30,7 +30,8 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
+        // Labels use the darker brand green so 12 pt text stays readable; icons use the brand green.
+        tabBarActiveTintColor: colors.primaryText,
         tabBarInactiveTintColor: colors.textTertiary,
         tabBarLabelStyle: {
           fontFamily: typography.caption.fontFamily,
@@ -42,6 +43,7 @@ export default function TabsLayout() {
           paddingTop: spacing.xs,
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
+          ...elevation.low,
         },
         sceneStyle: { backgroundColor: colors.background },
       }}
@@ -55,12 +57,16 @@ export default function TabsLayout() {
         options={{ title: 'Search', tabBarIcon: tabIcon('search', 'search-outline') }}
       />
       <Tabs.Screen
+        name="offers"
+        options={{ title: 'Offers', tabBarIcon: tabIcon('ticket', 'ticket-outline') }}
+      />
+      <Tabs.Screen
         name="orders"
         options={{ title: 'Orders', tabBarIcon: tabIcon('receipt', 'receipt-outline') }}
       />
       <Tabs.Screen
         name="profile"
-        options={{ title: 'Account', tabBarIcon: tabIcon('person', 'person-outline') }}
+        options={{ title: 'Profile', tabBarIcon: tabIcon('person', 'person-outline') }}
       />
     </Tabs>
   );

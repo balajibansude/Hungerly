@@ -99,6 +99,67 @@ describe('owner registration and branch management', () => {
   });
 });
 
+describe('business profile', () => {
+  const BUSINESS = { displayName: 'Tiffin Box', legalName: 'Tiffin Box Foods', entityType: 'partnership', gstin: null } as const;
+
+  it('needs a signed-in partner', async () => {
+    expect((await call(ctx, 'GET', '/partner/business')).status).toBe(401);
+    expect((await call(ctx, 'PATCH', '/partner/business', { body: { displayName: 'X Foods' } })).status).toBe(401);
+  });
+
+  it('is 404 until the business is created; PATCH does not create one', async () => {
+    const owner = await signInOwner(ctx);
+    expect((await call(ctx, 'GET', '/partner/business', { token: owner.token })).status).toBe(404);
+    const patched = await call(ctx, 'PATCH', '/partner/business', { token: owner.token, body: { displayName: 'Ghost' } });
+    expect(patched.status).toBe(404);
+    expect((await call(ctx, 'GET', '/partner/business', { token: owner.token })).status).toBe(404);
+  });
+
+  it('returns the business and edits only the fields sent, keeping PUT working', async () => {
+    const owner = await signInOwner(ctx);
+    const created = await call<{ id: string }>(ctx, 'PUT', '/partner/business', { token: owner.token, body: BUSINESS });
+    expect(created.status).toBe(200);
+
+    const got = await call(ctx, 'GET', '/partner/business', { token: owner.token });
+    expect(got.status).toBe(200);
+    expect(got.body).toEqual({ id: created.body.id, ...BUSINESS });
+
+    const patched = await call(ctx, 'PATCH', '/partner/business', {
+      token: owner.token,
+      body: { displayName: 'Tiffin Box Express', gstin: '27aapfu0939f1zv' },
+    });
+    expect(patched.status).toBe(200);
+    expect(patched.body).toEqual({ ...BUSINESS, id: created.body.id, displayName: 'Tiffin Box Express', gstin: '27AAPFU0939F1ZV' });
+    expect((await call(ctx, 'GET', '/partner/business', { token: owner.token })).body).toEqual(patched.body);
+
+    const bad = await call(ctx, 'PATCH', '/partner/business', { token: owner.token, body: { gstin: 'NOT-A-GSTIN' } });
+    expect(bad.status).toBe(422);
+
+    const audits = await ctx.db.select().from(auditLogs).where(eq(auditLogs.entityId, created.body.id));
+    expect(audits.map((a) => a.action)).toEqual(['business.created', 'business.updated']);
+    expect(audits[1]?.metadata).toEqual({ fields: ['displayName', 'gstin'] });
+
+    const replaced = await call(ctx, 'PUT', '/partner/business', { token: owner.token, body: BUSINESS });
+    expect(replaced.body).toEqual({ id: created.body.id, ...BUSINESS });
+  });
+
+  it("only ever reads or edits the caller's own business", async () => {
+    const alice = await signInOwner(ctx);
+    const bob = await signInOwner(ctx);
+    const a = await call<{ id: string }>(ctx, 'PUT', '/partner/business', { token: alice.token, body: BUSINESS });
+    const b = await call<{ id: string }>(ctx, 'PUT', '/partner/business', {
+      token: bob.token,
+      body: { ...BUSINESS, displayName: 'Bob Foods' },
+    });
+
+    await call(ctx, 'PATCH', '/partner/business', { token: bob.token, body: { legalName: 'Bob Foods Pvt' } });
+    const aliceView = await call<{ id: string; legalName: string }>(ctx, 'GET', '/partner/business', { token: alice.token });
+    const bobView = await call<{ id: string; legalName: string }>(ctx, 'GET', '/partner/business', { token: bob.token });
+    expect(aliceView.body).toMatchObject({ id: a.body.id, legalName: BUSINESS.legalName });
+    expect(bobView.body).toMatchObject({ id: b.body.id, legalName: 'Bob Foods Pvt' });
+  });
+});
+
 describe('owner isolation', () => {
   it("returns 404 for another owner's branch, hours, availability and edits", async () => {
     const alice = await signInOwner(ctx);
@@ -242,5 +303,31 @@ describe('hours, breaks and availability', () => {
       body: { isAcceptingOrders: false },
     });
     expect(offline.body.state).toBe('offline');
+  });
+
+  it('accepts PUT for intake with the same rules as PATCH (app compatibility)', async () => {
+    const { branchId: draftId } = await onboardBranch(ctx, owner);
+    const draftOnline = await call<{ code: string }>(ctx, 'PUT', `/partner/branches/${draftId}/intake`, {
+      token: owner.token,
+      body: { isAcceptingOrders: true },
+    });
+    expect(draftOnline.status).toBe(422);
+    expect(draftOnline.body.code).toBe('branch.not_active');
+
+    const { branch } = await createActiveBranch(ctx, owner.userId);
+    ctx.clock.set('2026-10-13T06:30:00Z');
+    const url = `/partner/branches/${branch.id}/intake`;
+    const offline = await call<{ state: string }>(ctx, 'PUT', url, { token: owner.token, body: { isAcceptingOrders: false } });
+    expect(offline.status).toBe(200);
+    expect(offline.body.state).toBe('offline');
+    const online = await call<{ state: string }>(ctx, 'PUT', url, { token: owner.token, body: { isAcceptingOrders: true } });
+    expect(online.body.state).toBe('open');
+    expect((await call(ctx, 'PUT', url, { token: owner.token, body: { pauseMinutes: 5 } })).status).toBe(422);
+
+    const intruder = await signInOwner(ctx);
+    await createActiveBranch(ctx, intruder.userId, { name: 'Elsewhere' });
+    expect((await call(ctx, 'PUT', url, { token: intruder.token, body: { isAcceptingOrders: false } })).status).toBe(404);
+    expect((await call(ctx, 'PUT', url, { body: { isAcceptingOrders: false } })).status).toBe(401);
+    expect((await call<{ state: string }>(ctx, 'GET', `/partner/branches/${branch.id}/availability`, { token: owner.token })).body.state).toBe('open');
   });
 });

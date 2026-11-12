@@ -1,5 +1,5 @@
 import { forwardRef, useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View, type TextInputInstance } from 'react-native';
 
 import { colors } from '../theme/colors';
 import { radius, spacing } from '../theme/layout';
@@ -19,7 +19,7 @@ export interface OtpInputProps {
  * (`oneTimeCode` / `sms-otp`), paste and screen readers working, which separate
  * per-digit inputs break.
  */
-export const OtpInput = forwardRef<TextInput, OtpInputProps>(function OtpInput(
+export const OtpInput = forwardRef<TextInputInstance, OtpInputProps>(function OtpInput(
   { value, onChange, length = 6, hasError = false, onComplete },
   ref,
 ) {

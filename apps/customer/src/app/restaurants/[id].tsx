@@ -3,10 +3,10 @@ import type { Food, MenuCategory } from '@hungerly/types';
 import {
   Chip,
   colors,
-  Divider,
   EmptyState,
   ErrorState,
   IconButton,
+  radius,
   RemoteImage,
   screenGutter,
   Skeleton,
@@ -20,21 +20,39 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CART_BAR_SPACE, CartBar } from '@/features/cart/components/CartBar';
-import { useAddToCart } from '@/features/cart/useAddToCart';
-import { MenuItemRow } from '@/features/menu/components/MenuItemRow';
-import { useMenuItemControls } from '@/features/menu/useMenuItemControls';
+import { opensAtLabel } from '@/features/food/availability';
+import { FoodCard } from '@/features/food/components/FoodCard';
+import { useGridCardWidth } from '@/features/food/components/FoodCollections';
+import { FoodPreferenceChips } from '@/features/food/components/FoodPreference';
+import {
+  filterByPreference,
+  preferenceLabel,
+  useFoodPreferenceStore,
+} from '@/features/food/preference';
+import { useDishCartControls, useSyncCartAvailability } from '@/features/food/useDishCartControls';
 import { RestaurantInfo } from '@/features/restaurants/components/RestaurantInfo';
 import { useServices } from '@/services';
 
+type MenuSection = MenuCategory & { count: number; data: Food[][] };
+
 const HERO_HEIGHT = 240;
+
+/** Splits a section's dishes into rows for the grid. */
+function chunk<T>(items: T[], size: number): T[][] {
+  const rows: T[][] = [];
+  for (let i = 0; i < items.length; i += size) rows.push(items.slice(i, i + size));
+  return rows;
+}
 
 export default function RestaurantDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { restaurants } = useServices();
   const insets = useSafeAreaInsets();
-  const listRef = useRef<SectionList<Food, MenuCategory>>(null);
+  const listRef = useRef<SectionList<Food[], MenuSection>>(null);
   const pendingJump = useRef<{ sectionIndex: number; retries: number } | null>(null);
-  const [vegOnly, setVegOnly] = useState(false);
+  const preference = useFoodPreferenceStore((s) => s.preference);
+  const setPreference = useFoodPreferenceStore((s) => s.setPreference);
+  const { width: cardWidth, columns } = useGridCardWidth();
   // Once the hero scrolls away, a solid top bar replaces the floating back button so it
   // never sits on top of menu text.
   const [collapsed, setCollapsed] = useState(false);
@@ -50,21 +68,18 @@ export default function RestaurantDetailsScreen() {
       menu,
     })),
   );
-  const { add, dialog } = useAddToCart();
-  const controlsFor = useMenuItemControls(
-    data.status === 'success' ? data.data.restaurant : undefined,
-    add,
-  );
+  const { controlsFor, dialog } = useDishCartControls();
+  useSyncCartAvailability(data.status === 'success' ? [data.data.restaurant] : undefined);
 
   const sections = useMemo(() => {
     if (data.status !== 'success') return [];
     return data.data.menu.categories
-      .map((category) => ({
-        ...category,
-        data: vegOnly ? category.foods.filter((food) => food.foodType === 'veg') : category.foods,
-      }))
-      .filter((section) => section.data.length > 0);
-  }, [data, vegOnly]);
+      .map((category) => {
+        const foods = filterByPreference(category.foods, preference, (food) => food.foodType);
+        return { ...category, count: foods.length, data: chunk(foods, columns) };
+      })
+      .filter((section) => section.count > 0);
+  }, [data, preference, columns]);
 
   const back = (
     <IconButton
@@ -100,14 +115,14 @@ export default function RestaurantDetailsScreen() {
   }
 
   const { restaurant } = data.data;
-  const showVegToggle = !restaurant.isPureVeg;
+  const opens = opensAtLabel(restaurant.opensAt);
 
   return (
     <View style={styles.screen}>
       <SectionList
         ref={listRef}
         sections={sections}
-        keyExtractor={(food) => food.id}
+        keyExtractor={(row) => row.map((food) => food.id).join('+')}
         stickySectionHeadersEnabled={false}
         scrollEventThrottle={16}
         onScroll={(event) => {
@@ -125,19 +140,22 @@ export default function RestaurantDetailsScreen() {
             <View style={styles.infoWrap}>
               <RestaurantInfo restaurant={restaurant} />
             </View>
+            {!restaurant.isOpen && (
+              <View style={styles.closedBanner} accessibilityRole="alert">
+                <Text variant="label" color="onSecondary">
+                  This restaurant is currently closed.{opens ? ` ${opens}.` : ''}
+                </Text>
+                <Text variant="bodySmall" color="onSecondary" style={styles.closedHint}>
+                  You can browse the menu, but items can’t be added until it reopens.
+                </Text>
+              </View>
+            )}
+            <FoodPreferenceChips style={styles.preferenceChips} />
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.chips}
             >
-              {showVegToggle && (
-                <Chip
-                  label="Veg only"
-                  icon="leaf-outline"
-                  selected={vegOnly}
-                  onPress={() => setVegOnly((v) => !v)}
-                />
-              )}
               {sections.map((section, sectionIndex) => (
                 <Chip
                   key={section.id}
@@ -155,33 +173,31 @@ export default function RestaurantDetailsScreen() {
               {section.name}
             </Text>
             <Text variant="bodySmall" color="textTertiary">
-              {section.data.length} {section.data.length === 1 ? 'item' : 'items'}
+              {section.count} {section.count === 1 ? 'item' : 'items'}
             </Text>
           </View>
         )}
-        ItemSeparatorComponent={() => <Divider inset />}
-        renderItem={({ item }) => {
-          const controls = controlsFor(item);
-          return (
-            <View style={styles.row}>
-              <MenuItemRow
-                food={item}
-                quantity={controls.quantity}
-                onOpen={controls.openDetails}
-                onIncrement={controls.onIncrement}
-                onDecrement={controls.onDecrement}
-                restaurantClosed={!restaurant.isOpen}
+        renderItem={({ item: row }) => (
+          <View style={styles.row}>
+            {row.map((food) => (
+              <FoodCard
+                key={food.id}
+                food={food}
+                restaurant={restaurant}
+                controls={controlsFor(food, restaurant)}
+                width={cardWidth}
+                showRestaurant={false}
               />
-            </View>
-          );
-        }}
+            ))}
+          </View>
+        )}
         ListEmptyComponent={
           <EmptyState
             icon="leaf-outline"
-            title="No veg dishes here"
-            message="This restaurant has no vegetarian dishes on its menu yet."
+            title={`No ${preferenceLabel(preference)} dishes here`}
+            message="This restaurant has no dishes matching your food preference."
             actionLabel="Show all dishes"
-            onAction={() => setVegOnly(false)}
+            onAction={() => setPreference('mixed')}
           />
         }
         // Sections far down the list may not be measured yet; retry once they have rendered.
@@ -247,7 +263,17 @@ const styles = StyleSheet.create({
   loadingBody: { padding: screenGutter, gap: spacing.md },
   listContent: { paddingBottom: CART_BAR_SPACE },
   infoWrap: { paddingHorizontal: screenGutter, marginTop: -spacing['3xl'] },
-  chips: { paddingHorizontal: screenGutter, gap: spacing.sm, paddingVertical: spacing.lg },
+  closedBanner: {
+    marginHorizontal: screenGutter,
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    gap: spacing.xxs,
+    borderRadius: radius.lg,
+    backgroundColor: colors.secondary,
+  },
+  closedHint: { opacity: 0.85 },
+  preferenceChips: { paddingTop: spacing.lg },
+  chips: { paddingHorizontal: screenGutter, gap: spacing.sm, paddingVertical: spacing.md },
   sectionHeader: {
     paddingHorizontal: screenGutter,
     paddingTop: spacing.xl,
@@ -255,5 +281,10 @@ const styles = StyleSheet.create({
     gap: spacing.xxs,
     backgroundColor: colors.background,
   },
-  row: { paddingHorizontal: screenGutter },
+  row: {
+    flexDirection: 'row',
+    gap: spacing.lg,
+    paddingHorizontal: screenGutter,
+    paddingVertical: spacing.md,
+  },
 });

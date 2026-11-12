@@ -107,7 +107,7 @@ export const otpChallenges = pgTable(
   (t) => [index('otp_identifier_idx').on(t.identifier, t.createdAt)],
 );
 
-export const AUDIENCES = ['partner', 'admin'] as const;
+export const AUDIENCES = ['partner', 'admin', 'customer'] as const;
 
 export const authSessions = pgTable(
   'auth_sessions',

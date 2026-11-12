@@ -127,7 +127,7 @@ export default function ReviewsScreen() {
                     </Text>
                   )}
                 </Card>
-              ) : null
+              ) : undefined
             }
             ListEmptyComponent={
               <EmptyState

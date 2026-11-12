@@ -37,6 +37,12 @@ export interface BillInput {
   deliveryFee: Money;
   minimumOrder: Money;
   offer?: Offer;
+  /**
+   * Night-time surcharge in paise (0 when not applicable or feature disabled).
+   * Set by the caller from the server's pricing-config response so the estimate
+   * matches what the server will charge at order creation.
+   */
+  nightChargeMinor?: number;
 }
 
 export interface Bill {
@@ -44,6 +50,8 @@ export interface Bill {
   subtotal: Money;
   deliveryFee: Money;
   discount: Money;
+  /** Night-time surcharge. Zero when the feature is off or it is not currently night. */
+  nightCharge: Money;
   total: Money;
   /** How much more is needed to reach the restaurant's minimum order, if anything. */
   shortOfMinimum: Money | null;
@@ -51,12 +59,13 @@ export interface Bill {
   shortOfOffer: Money | null;
 }
 
-export function computeBill({ items, deliveryFee, minimumOrder, offer }: BillInput): Bill {
+export function computeBill({ items, deliveryFee, minimumOrder, offer, nightChargeMinor = 0 }: BillInput): Bill {
   const subtotal = sumMoney(items.map(lineTotal));
   const discount = discountFor(offer?.rule, subtotal);
   const itemCount = items.reduce((count, item) => count + item.quantity, 0);
   const fee = itemCount === 0 ? zeroMoney() : deliveryFee;
-  const total = subtractMoney(addMoney(subtotal, fee), discount);
+  const nightCharge = itemCount === 0 ? zeroMoney() : money(nightChargeMinor);
+  const total = subtractMoney(addMoney(addMoney(subtotal, fee), nightCharge), discount);
   const minimumGap = minimumOrder.amountMinor - subtotal.amountMinor;
   const offerGap = offer ? offer.rule.minimumOrder.amountMinor - subtotal.amountMinor : 0;
 
@@ -65,6 +74,7 @@ export function computeBill({ items, deliveryFee, minimumOrder, offer }: BillInp
     subtotal,
     deliveryFee: fee,
     discount,
+    nightCharge,
     total,
     shortOfMinimum: itemCount > 0 && minimumGap > 0 ? money(minimumGap) : null,
     shortOfOffer: offer && itemCount > 0 && offerGap > 0 ? money(offerGap) : null,

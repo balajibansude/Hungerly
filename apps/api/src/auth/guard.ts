@@ -28,6 +28,11 @@ export interface AdminAuth {
   role: AdminRole;
 }
 
+export interface CustomerAuth {
+  userId: string;
+  sessionId: string;
+}
+
 function bearer(request: FastifyRequest): string {
   const header = request.headers.authorization;
   if (!header?.startsWith('Bearer ')) throw unauthenticated();
@@ -76,6 +81,16 @@ export async function requirePartner(request: FastifyRequest): Promise<PartnerAu
     throw forbidden('Only restaurant owners can use the partner app. Contact Swaadone support.');
   }
   return { userId: claims.userId, sessionId: claims.sessionId, businessId: account.businessId };
+}
+
+/**
+ * Signed-in customer. Only `customer`-audience sessions pass: partner and admin tokens are
+ * refused (401) by the audience check in the token and the session row. Customers have no
+ * account table — the session audience is the role — and inactive users are refused (403).
+ */
+export async function requireCustomer(request: FastifyRequest): Promise<CustomerAuth> {
+  const claims = await verifySession(request, 'customer');
+  return { userId: claims.userId, sessionId: claims.sessionId };
 }
 
 /** Partner who has created their business (most partner routes). */

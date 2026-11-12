@@ -1,4 +1,4 @@
-import { paths, ReviewPageSchema, ReplyToReviewSchema } from '@hungerly/api-client';
+import { OkSchema, paths, ReviewPageSchema, ReviewSchema } from '@hungerly/api-client';
 import {
   Button,
   Card,
@@ -37,7 +37,7 @@ export default function ReviewDetailScreen() {
     async () => {
       if (!branchId || !id) return;
       await api.request('POST', paths.partner.reviewReply(branchId, id), {
-        schema: ReplyToReviewSchema,
+        schema: ReviewSchema,
         body: { body: replyText.trim() },
       });
       reviewsQuery.refetch?.();
@@ -49,7 +49,7 @@ export default function ReviewDetailScreen() {
   const { run: reportReview, pending: reporting } = useMutation(async () => {
     if (!branchId || !id) return;
     await api.request('POST', paths.partner.reviewReport(branchId, id), {
-      schema: ReplyToReviewSchema,
+      schema: OkSchema,
       body: { reason: 'other', note: null },
     });
     Alert.alert('Reported', 'This review has been flagged for Swaadone to review.');

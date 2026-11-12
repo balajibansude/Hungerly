@@ -5,6 +5,7 @@ import {
   TextInput,
   View,
   type StyleProp,
+  type TextInputInstance,
   type ViewStyle,
 } from 'react-native';
 
@@ -43,14 +44,14 @@ export function SearchBarButton({ placeholder, onPress, style }: SearchBarButton
       style={({ pressed }) => [styles.bar, pressed && styles.pressed, style]}
     >
       <Icon name="search" color="textSecondary" />
-      <Text variant="body" color="textTertiary" numberOfLines={1} style={styles.flex}>
+      <Text variant="body" color="textMuted" numberOfLines={1} style={styles.flex}>
         {placeholder}
       </Text>
     </Pressable>
   );
 }
 
-export const SearchBarInput = forwardRef<TextInput, SearchBarInputProps>(function SearchBarInput(
+export const SearchBarInput = forwardRef<TextInputInstance, SearchBarInputProps>(function SearchBarInput(
   { placeholder, value, onChangeText, onSubmit, autoFocus, style },
   ref,
 ) {
@@ -63,7 +64,7 @@ export const SearchBarInput = forwardRef<TextInput, SearchBarInputProps>(functio
         onChangeText={onChangeText}
         onSubmitEditing={onSubmit}
         placeholder={placeholder}
-        placeholderTextColor={colors.textTertiary}
+        placeholderTextColor={colors.textMuted}
         selectionColor={colors.primary}
         autoFocus={autoFocus}
         autoCorrect={false}
@@ -95,8 +96,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingLeft: spacing.lg,
     paddingRight: spacing.xs,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface,
+    borderRadius: radius.input,
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.border,
   },

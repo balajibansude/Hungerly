@@ -97,29 +97,52 @@ export function activeMembership(session: PartnerSession | null): { restaurantId
   return { restaurantId: branch.id };
 }
 
+/**
+ * Statuses of a branch that has been approved at least once. Any of these opens the
+ * workspace (suspended/closed branches still need orders history, wallet and support).
+ */
+const WORKSPACE_STATUSES: ReadonlySet<BranchSummary['status']> = new Set(['active', 'suspended', 'closed']);
+
+/** Statuses the owner can still edit and (re)submit through the registration wizard. */
+const RESUMABLE_STATUSES: ReadonlySet<BranchSummary['status']> = new Set(['draft', 'rejected']);
+
 export interface RouteAccess {
   signedOut: boolean;
-  /** Signed in without any branch yet: business profile + first branch setup. */
+  /** No approved branch and nothing in review: start or resume registration (draft/rejected). */
   needsOnboarding: boolean;
-  /** Signed in with at least one branch (draft branches show "continue setup"). */
+  /** No approved branch, but a branch has been submitted and is waiting for admin review. */
+  awaitingApproval: boolean;
+  /** At least one branch has been approved: the restaurant workspace. */
   hasWorkspace: boolean;
 }
 
 /** Which route groups are reachable. Drives the `Stack.Protected` guards (UX only; the API enforces access). */
 export function routeAccessFor(session: PartnerSession | null): RouteAccess {
-  const hasWorkspace = (session?.branches.length ?? 0) > 0;
+  const branches = session?.branches ?? [];
+  const hasWorkspace = branches.some((b) => WORKSPACE_STATUSES.has(b.status));
+  const awaitingApproval = session !== null && !hasWorkspace && branches.some((b) => b.status === 'pending_review');
   return {
     signedOut: session === null,
-    needsOnboarding: session !== null && !hasWorkspace,
+    needsOnboarding: session !== null && !hasWorkspace && !awaitingApproval,
+    awaitingApproval,
     hasWorkspace,
   };
 }
 
-export type EntryRoute = '/login' | '/welcome' | '/home';
+/**
+ * The branch registration should continue with, so a returning owner edits their existing
+ * draft (or rejected) branch instead of creating a duplicate. Null when there is none.
+ */
+export function resumableBranch(session: PartnerSession | null): BranchSummary | null {
+  return session?.branches.find((b) => RESUMABLE_STATUSES.has(b.status)) ?? null;
+}
+
+export type EntryRoute = '/login' | '/welcome' | '/pending' | '/home';
 
 export function entryRouteFor(session: PartnerSession | null): EntryRoute {
   const access = routeAccessFor(session);
   if (access.signedOut) return '/login';
   if (access.needsOnboarding) return '/welcome';
+  if (access.awaitingApproval) return '/pending';
   return '/home';
 }

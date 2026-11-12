@@ -1,15 +1,24 @@
 import { createServicesContext } from '@hungerly/app-core';
 
+import { IS_MOCK_MODE } from '@/lib/api';
+
+import { createApiAuthService } from './api/auth';
 import type { Services } from './contracts';
 import { createMockServices } from './mock';
 
 /**
- * Provides the service implementations to the app.
+ * Chooses the service implementations.
  *
- * Today this always uses the prototype mocks. When the backend is ready, a
- * `createApiServices(apiClient)` implementation is passed in here (chosen by build
- * configuration) — no screen changes are needed.
+ * - Mock mode (no `EXPO_PUBLIC_API_URL`, or `EXPO_PUBLIC_USE_MOCK=true`): every service is
+ *   the prototype mock, exactly as before.
+ * - Otherwise only authentication talks to the Swaadone API; catalog, orders, offers and
+ *   the rest stay on the mocks until their endpoints exist.
  */
+export function createServices(mockMode: boolean = IS_MOCK_MODE): Services {
+  const mock = createMockServices();
+  return mockMode ? mock : { ...mock, auth: createApiAuthService() };
+}
+
 export const { ServicesProvider, useServices } = createServicesContext<Services>(() =>
-  createMockServices(),
+  createServices(),
 );

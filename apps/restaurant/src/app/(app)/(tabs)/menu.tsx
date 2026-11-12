@@ -1,4 +1,4 @@
-import { MenuSchema, paths, type MenuItem } from '@hungerly/api-client';
+import { MenuItemSchema, MenuSchema, paths, type MenuItem } from '@hungerly/api-client';
 import {
   Card,
   Divider,
@@ -64,7 +64,7 @@ export default function MenuScreen() {
   const { run: toggleAvailability } = useMutation(
     async (branchId: string, itemId: string, isAvailable: boolean) => {
       await api.request('PUT', apiPaths.partner.menuItemAvailability(branchId, itemId), {
-        schema: MenuSchema,
+        schema: MenuItemSchema,
         body: { isAvailable },
       });
       menuQuery.refetch?.();

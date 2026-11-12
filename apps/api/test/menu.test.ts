@@ -254,6 +254,38 @@ describe('menu management', () => {
     expect(create.status).toBe(404);
   });
 
+  it('reads one item and accepts PUT for availability (app compatibility)', async () => {
+    const created = await call<{ id: string }>(ctx, 'POST', `/partner/branches/${branchId}/menu/items`, {
+      token: owner.token,
+      body: { categoryId, name: 'Masala Dosa', priceMinor: 12_000, foodType: 'veg' },
+    });
+    const itemUrl = `/partner/branches/${branchId}/menu/items/${created.body.id}`;
+
+    const item = await call<{ id: string; name: string; isAvailable: boolean }>(ctx, 'GET', itemUrl, { token: owner.token });
+    expect(item.status).toBe(200);
+    expect(item.body).toMatchObject({ id: created.body.id, name: 'Masala Dosa', isAvailable: true });
+    expect((await call(ctx, 'GET', `/partner/branches/${branchId}/menu/items/${branchId}`, { token: owner.token })).status).toBe(404);
+    expect((await call(ctx, 'GET', `/partner/branches/${branchId}/menu/items/not-a-uuid`, { token: owner.token })).status).toBe(422);
+
+    const off = await call<{ isAvailable: boolean }>(ctx, 'PUT', `${itemUrl}/availability`, {
+      token: owner.token,
+      body: { isAvailable: false },
+    });
+    expect(off.status).toBe(200);
+    expect(off.body.isAvailable).toBe(false);
+    expect((await call<{ isAvailable: boolean }>(ctx, 'GET', itemUrl, { token: owner.token })).body.isAvailable).toBe(false);
+    expect((await call(ctx, 'PUT', `${itemUrl}/availability`, { token: owner.token, body: {} })).status).toBe(422);
+
+    const intruder = await signInOwner(ctx);
+    await createActiveBranch(ctx, intruder.userId, { name: 'Elsewhere Too' });
+    expect((await call(ctx, 'GET', itemUrl, { token: intruder.token })).status).toBe(404);
+    expect(
+      (await call(ctx, 'PUT', `${itemUrl}/availability`, { token: intruder.token, body: { isAvailable: true } })).status,
+    ).toBe(404);
+    expect((await call(ctx, 'GET', itemUrl)).status).toBe(401);
+    expect((await call(ctx, 'PUT', `${itemUrl}/availability`, { body: { isAvailable: true } })).status).toBe(401);
+  });
+
   it('renames and deactivates categories', async () => {
     const res = await call<MenuBody>(
       ctx,

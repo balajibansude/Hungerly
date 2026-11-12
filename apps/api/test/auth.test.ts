@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { partnerAccounts, users } from '../src/db/schema';
+import { otpChallenges, partnerAccounts, users } from '../src/db/schema';
 import { call, createTestContext, signInOwner, type TestContext } from './harness';
 
 let ctx: TestContext;
@@ -79,5 +79,28 @@ describe('partner sign-in', () => {
     expect(verified.status).toBe(200);
     const [account] = await ctx.db.select().from(partnerAccounts).where(eq(partnerAccounts.userId, verified.body.session.user.id));
     expect(account?.role).toBe('owner');
+  });
+});
+
+describe('OTP resend cooldown', () => {
+  it('stamps challenges with the application clock and enforces the 30 s cooldown on it', async () => {
+    // Move the app clock far from the database's wall clock: the cooldown must follow the app clock.
+    ctx.clock.set('2031-03-01T10:00:00.000Z');
+    const phoneE164 = '+919000000004';
+    const request = () =>
+      call<{ requestId: string; code?: string }>(ctx, 'POST', '/auth/otp/request', {
+        body: { channel: 'phone', phoneE164 },
+      });
+
+    const first = await request();
+    expect(first.status).toBe(200);
+    const [challenge] = await ctx.db.select().from(otpChallenges).where(eq(otpChallenges.id, first.body.requestId));
+    expect(challenge?.createdAt.toISOString()).toBe('2031-03-01T10:00:00.000Z');
+
+    expect((await request()).status).toBe(429);
+    ctx.clock.advance(29_000);
+    expect((await request()).status).toBe(429);
+    ctx.clock.advance(2_000);
+    expect((await request()).status).toBe(200);
   });
 });

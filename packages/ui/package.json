@@ -2,7 +2,7 @@
   "name": "@hungerly/ui",
   "version": "0.1.0",
   "private": true,
-  "description": "Hungerly design system: tokens and React Native components shared by the mobile apps.",
+  "description": "Swaadone design system: tokens and React Native components shared by the mobile apps.",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
@@ -25,15 +25,15 @@
   "devDependencies": {
     "@expo/vector-icons": "^15.1.1",
     "@hungerly/config": "workspace:*",
-    "@types/react": "~19.2.2",
+    "@types/react": "~19.3.0",
     "eslint": "^9.39.5",
-    "expo-image": "~57.0.5",
-    "expo-status-bar": "~57.0.1",
-    "react": "19.2.3",
-    "react-native": "0.86.3",
-    "react-native-reanimated": "4.5.1",
-    "react-native-safe-area-context": "~5.7.0",
-    "react-native-worklets": "0.10.1",
+    "expo-image": "~58.0.18",
+    "expo-status-bar": "~58.0.4",
+    "react": "19.3.0",
+    "react-native": "0.88.1",
+    "react-native-reanimated": "4.7.1",
+    "react-native-safe-area-context": "~5.11.1",
+    "react-native-worklets": "0.13.0",
     "typescript": "~6.0.3"
   }
 }

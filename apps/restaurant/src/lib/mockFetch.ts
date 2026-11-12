@@ -5,6 +5,8 @@
  * Responses are plain objects that match the Zod schemas — no actual network call is made.
  */
 
+import { ReplaceHoursSchema, SetPayoutAccountSchema } from '@hungerly/api-client';
+
 import { masalaJunctionOrders, MASALA_JUNCTION_ID } from '@/mock';
 import { DEMO_PHONE_E164, PROTOTYPE_OTP } from '@/services/mock';
 
@@ -109,13 +111,13 @@ const DEMO_BRANCH_DETAIL = {
     packagingFee: INR(1000),
     commissionBps: 1800,
     hours: [
-      { dayOfWeek: 'monday', opensAt: '11:00', closesAt: '23:00' },
-      { dayOfWeek: 'tuesday', opensAt: '11:00', closesAt: '23:00' },
-      { dayOfWeek: 'wednesday', opensAt: '11:00', closesAt: '23:00' },
-      { dayOfWeek: 'thursday', opensAt: '11:00', closesAt: '23:00' },
-      { dayOfWeek: 'friday', opensAt: '11:00', closesAt: '23:30' },
-      { dayOfWeek: 'saturday', opensAt: '10:00', closesAt: '23:30' },
-      { dayOfWeek: 'sunday', opensAt: '10:00', closesAt: '22:30' },
+      { dayOfWeek: 0, opensAt: '11:00', closesAt: '23:00' },
+      { dayOfWeek: 1, opensAt: '11:00', closesAt: '23:00' },
+      { dayOfWeek: 2, opensAt: '11:00', closesAt: '23:00' },
+      { dayOfWeek: 3, opensAt: '11:00', closesAt: '23:00' },
+      { dayOfWeek: 4, opensAt: '11:00', closesAt: '23:30' },
+      { dayOfWeek: 5, opensAt: '10:00', closesAt: '23:30' },
+      { dayOfWeek: 6, opensAt: '10:00', closesAt: '22:30' },
     ],
     availability: {
       state: 'open',
@@ -306,8 +308,8 @@ const DEMO_REVIEWS = [
  * The api-client only reads .ok, .status, .json(), and .text() from a Response.
  */
 function mockResponse(body: unknown, status = 200): Response {
-  if (__DEV__) {
-    // Confirm mock layer is active — visible in Metro logs, no secrets logged.
+  if (__DEV__ && status >= 400) {
+    // Surface mock error responses in Metro logs; successes stay quiet. No secrets logged.
     console.warn('[MockFetch] response', status);
   }
   return {
@@ -343,6 +345,14 @@ function parsePath(url: string): string {
   }
 }
 
+let announcedMockLayer = false;
+
+/**
+ * Branches created through the registration wizard, so later steps (and the submitted
+ * branch) return what the partner entered instead of the demo branch. Lives for the session.
+ */
+const createdBranches = new Map<string, Record<string, unknown>>();
+
 /** Mock that mirrors the real API's behaviour. Latency: none (tests run fast). */
 export async function mockFetch(
   input: RequestInfo | URL,
@@ -351,7 +361,11 @@ export async function mockFetch(
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
   const method = (init?.method ?? 'GET').toUpperCase();
   const path = parsePath(url);
-  if (__DEV__) console.warn('[MockFetch]', method, path);
+  if (__DEV__ && !announcedMockLayer) {
+    // Confirm once that the mock layer is active instead of warning on every request.
+    announcedMockLayer = true;
+    console.warn('[MockFetch] mock API active (EXPO_PUBLIC_USE_MOCK)');
+  }
 
   // Strip /api/v1 prefix if present
   const p = path.replace(/^\/api\/v1/, '');
@@ -423,7 +437,8 @@ export async function mockFetch(
     return mockResponse(DEMO_SESSION.business);
   }
 
-  if ((method === 'PUT' || method === 'POST') && p === '/partner/business') {
+  // PATCH mirrors the API's partial edit; PUT/POST keep the create-or-replace behaviour.
+  if ((method === 'PUT' || method === 'POST' || method === 'PATCH') && p === '/partner/business') {
     return mockResponse({ ...DEMO_SESSION.business, ...body });
   }
 
@@ -460,7 +475,7 @@ export async function mockFetch(
   }
 
   if (method === 'POST' && p === '/partner/branches') {
-    return mockResponse({
+    const created: Record<string, unknown> = {
       id: D.branchNew,
       businessId: D.business,
       name: body.name ?? 'New Branch',
@@ -493,31 +508,48 @@ export async function mockFetch(
       submittedAt: null,
       approvedAt: null,
       createdAt: new Date().toISOString(),
-    });
+    };
+    createdBranches.set(D.branchNew, created);
+    // Same envelope as the real API (BranchDetailSchema).
+    return mockResponse({ branch: created, onboarding: DEMO_BRANCH_DETAIL.onboarding });
   }
 
   const branchMatch = p.match(/^\/partner\/branches\/([^/]+)(\/(.*))?$/);
   if (branchMatch) {
-    const branchId = branchMatch[1];
+    const branchId = branchMatch[1]!;
     const sub = branchMatch[3] ?? '';
     const isDemoB = branchId === MASALA_JUNCTION_ID;
+    const created = createdBranches.get(branchId);
+    const branchBase = created ?? { ...DEMO_BRANCH_DETAIL.branch, id: branchId };
 
     if (!sub) {
       if (method === 'GET') {
         return isDemoB
           ? mockResponse(DEMO_BRANCH_DETAIL)
           : mockResponse({
-              branch: { ...DEMO_BRANCH_DETAIL.branch, id: branchId, status: 'pending_review' },
+              branch: created ?? { ...branchBase, status: 'pending_review' },
               onboarding: DEMO_BRANCH_DETAIL.onboarding,
             });
       }
       if (method === 'PATCH' || method === 'PUT') {
-        return mockResponse({ ...DEMO_BRANCH_DETAIL.branch, ...body });
+        // The API takes amounts as `…Minor` integers but returns them as Money.
+        const { minimumOrderMinor, packagingFeeMinor, ...fields } = body;
+        const updated = {
+          ...branchBase,
+          ...fields,
+          ...(typeof minimumOrderMinor === 'number' ? { minimumOrder: INR(minimumOrderMinor) } : {}),
+          ...(typeof packagingFeeMinor === 'number' ? { packagingFee: INR(packagingFeeMinor) } : {}),
+        };
+        if (created) createdBranches.set(branchId, updated);
+        return mockResponse({ branch: updated, onboarding: DEMO_BRANCH_DETAIL.onboarding });
       }
     }
 
     if (sub === 'submit' && method === 'POST') {
-      return mockResponse({ submitted: true });
+      // The real API answers with the BranchDetail, now pending review.
+      const submitted = { ...branchBase, status: 'pending_review', submittedAt: new Date().toISOString() };
+      if (created) createdBranches.set(branchId, submitted);
+      return mockResponse({ branch: submitted, onboarding: DEMO_BRANCH_DETAIL.onboarding });
     }
 
     if (sub === 'declaration') {
@@ -533,7 +565,17 @@ export async function mockFetch(
           availability: DEMO_BRANCH_DETAIL.branch.availability,
         });
       }
-      if (method === 'PUT') return mockResponse({ sessions: body.sessions ?? [] });
+      if (method === 'PUT') {
+        // Same contract as the real API: validate the body, answer with the full HoursResponse.
+        const parsed = ReplaceHoursSchema.safeParse(body);
+        if (!parsed.success) return errorResponse(422, 'validation', 'Some fields need attention.');
+        if (created) createdBranches.set(branchId, { ...created, hours: parsed.data.sessions });
+        return mockResponse({
+          sessions: parsed.data.sessions,
+          closures: [],
+          availability: DEMO_BRANCH_DETAIL.branch.availability,
+        });
+      }
     }
 
     if (sub === 'closures') {
@@ -566,19 +608,37 @@ export async function mockFetch(
           history: [],
         });
       }
-      if (method === 'POST') return errorResponse(422, 'not_implemented', 'Document upload requires the backend.');
+      if (method === 'POST') {
+        return mockResponse({
+          id: `00000000-0000-400a-8000-${String(Date.now()).slice(-12).padStart(12, '0')}`,
+          branchId,
+          type: body.type ?? 'fssai_license',
+          documentNumber: body.documentNumber ?? null,
+          expiresOn: body.expiresOn ?? null,
+          fileName: 'document.pdf',
+          mimeType: 'application/pdf',
+          sizeBytes: 0,
+          status: 'pending_review',
+          rejectionReason: null,
+          submittedAt: new Date().toISOString(),
+          reviewedAt: null,
+        });
+      }
     }
 
     if (sub === 'payout-account') {
       if (method === 'GET') return mockResponse({ current: null, nextStep: 'Add your bank account to withdraw earnings.' });
       if (method === 'PUT') {
+        // Same contract as the real API, including the matching confirmation number.
+        const parsed = SetPayoutAccountSchema.safeParse(body);
+        if (!parsed.success) return errorResponse(422, 'validation', 'Some fields need attention.');
         return mockResponse({
           current: {
             id: D.acct,
             branchId,
-            accountHolderName: body.accountHolderName,
-            accountNumberLast4: (body.accountNumber as string)?.slice(-4) ?? '0000',
-            ifsc: body.ifsc,
+            accountHolderName: parsed.data.accountHolderName,
+            accountNumberLast4: parsed.data.accountNumber.slice(-4),
+            ifsc: parsed.data.ifsc,
             status: 'pending_verification',
             registeredName: null,
             failureReason: null,
@@ -663,7 +723,15 @@ export async function mockFetch(
 
     if (sub === 'menu/categories') {
       if (method === 'GET') return isDemoB ? mockResponse(DEMO_MENU.categories) : mockResponse([]);
-      if (method === 'POST') return errorResponse(422, 'not_implemented', 'Menu editing requires the backend.');
+      if (method === 'POST') {
+        return mockResponse({
+          id: `00000000-0000-400b-8000-${String(Date.now()).slice(-12).padStart(12, '0')}`,
+          name: body.name ?? 'New Category',
+          sortOrder: body.sortOrder ?? 0,
+          isActive: true,
+          items: [],
+        });
+      }
     }
 
     const menuCatMatch = sub.match(/^menu\/categories\/([^/]+)$/);
@@ -678,7 +746,25 @@ export async function mockFetch(
         const items = DEMO_MENU.categories.flatMap((c) => c.items);
         return mockResponse({ items, nextCursor: null });
       }
-      if (method === 'POST') return errorResponse(422, 'not_implemented', 'Menu editing requires the backend.');
+      if (method === 'POST') {
+        const price = typeof body.price === 'number' ? body.price : 0;
+        const catId = `00000000-0000-400b-8000-${String(Date.now()).slice(-12).padStart(12, '0')}`;
+        return mockResponse({
+          id: `00000000-0000-400c-8000-${String(Date.now()).slice(-12).padStart(12, '0')}`,
+          categoryId: body.categoryId ?? catId,
+          name: body.name ?? 'New Item',
+          description: body.description ?? '',
+          price: { amountMinor: price, currency: 'INR' },
+          foodType: body.foodType ?? 'veg',
+          imageUrl: null,
+          isAvailable: true,
+          isArchived: false,
+          isBestseller: false,
+          prepMinutes: body.prepMinutes ?? 20,
+          sortOrder: 0,
+          updatedAt: new Date().toISOString(),
+        });
+      }
     }
 
     const menuItemMatch = sub.match(/^menu\/items\/([^/]+)(\/.*)?$/);
@@ -689,8 +775,10 @@ export async function mockFetch(
       const item = allItems.find((i) => i.id === itemId);
 
       if (itemSub === '/availability' && method === 'PUT') {
-        if (item !== undefined && item !== null) item.isAvailable = body.isAvailable as boolean ?? item.isAvailable;
-        return mockResponse(item ?? null);
+        // Same contract as the real API: 404 for an unknown item, otherwise the updated MenuItem.
+        if (!item) return errorResponse(404, 'not_found', 'Item not found.');
+        item.isAvailable = body.isAvailable as boolean ?? item.isAvailable;
+        return mockResponse(item);
       }
       if (method === 'GET') return item ? mockResponse(item) : errorResponse(404, 'not_found', 'Item not found.');
     }
@@ -741,8 +829,10 @@ export async function mockFetch(
       const reviewSub = reviewMatch[2] ?? '';
       if (reviewSub === '/reply' && method === 'POST') {
         const review = DEMO_REVIEWS.find((r) => r.id === reviewMatch[1]!);
-        if (review) review.reply = { body: body.body, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), editableUntil: new Date(Date.now() + 3600000).toISOString() };
-        return mockResponse({ ok: true });
+        // Same contract as the real API: 404 for an unknown review, otherwise the updated Review.
+        if (!review) return errorResponse(404, 'not_found', 'Review not found.');
+        review.reply = { body: body.body, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), editableUntil: new Date(Date.now() + 3600000).toISOString() };
+        return mockResponse(review);
       }
       if (reviewSub === '/report' && method === 'POST') return mockResponse({ ok: true });
     }

@@ -38,18 +38,18 @@ export async function payoutRoutes(api: FastifyInstance) {
     },
   );
 
-  app.post(
-    paths.partner.payoutAccount(':branchId'),
-    {
-      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
-      schema: { params: BranchParams, body: SetPayoutAccountSchema, response: { 200: PayoutAccountResponseSchema } },
-    },
-    async (req) => {
+  // PUT is an alias of POST for app compatibility: same validation, rate limit and handling.
+  app.route({
+    method: ['POST', 'PUT'],
+    url: paths.partner.payoutAccount(':branchId'),
+    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    schema: { params: BranchParams, body: SetPayoutAccountSchema, response: { 200: PayoutAccountResponseSchema } },
+    handler: async (req) => {
       const { auth, branch } = await requireOwnedBranch(req, req.params.branchId);
       await setPayoutAccount(app.deps, { branch, userId: auth.userId, details: req.body, ip: req.ip });
       return accountResponse(app.deps, branch.id);
     },
-  );
+  });
 
   app.post(
     paths.partner.payoutAccountRefresh(':branchId'),

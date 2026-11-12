@@ -6,7 +6,8 @@ export const offers = {
     id: 'o-welcome',
     label: '50% off up to ₹120',
     description: 'On your first order above ₹199',
-    code: 'HELLOHUNGERLY',
+    code: 'HELLOSWAADONE',
+    firstOrderOnly: true,
     rule: {
       kind: 'percent',
       percentBps: 5000,

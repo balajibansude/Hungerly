@@ -1,5 +1,5 @@
 import {
-  BranchSchema,
+  BranchDetailSchema,
   BusinessSchema,
   paths,
 } from '@hungerly/api-client';
@@ -78,11 +78,11 @@ function Step1Name({
     if (trimmed.length < 2) { setFieldError('Restaurant name must be at least 2 characters.'); return; }
     if (trimmed.length > 80) { setFieldError('Name must be 80 characters or fewer.'); return; }
     setFieldError('');
-    const branch = await api.request('POST', paths.partner.branches, {
-      schema: BranchSchema,
+    const created = await api.request('POST', paths.partner.branches, {
+      schema: BranchDetailSchema,
       body: { name: trimmed },
     });
-    onNext(branch.id, trimmed);
+    onNext(created.branch.id, trimmed);
   });
 
   return (
@@ -133,7 +133,7 @@ function Step2Type({
     setFieldError('');
     const minOrderMinor = minOrder.trim() ? Math.round(parseFloat(minOrder) * 100) : 0;
     await api.request('PATCH', paths.partner.branch(branchId), {
-      schema: BranchSchema,
+      schema: BranchDetailSchema,
       body: { foodType, cuisines, avgPrepMinutes: prep, minimumOrderMinor: minOrderMinor },
     });
     onNext(foodType, cuisines, prep, minOrder);
@@ -252,7 +252,7 @@ function Step3Location({
       postalCode: postalCode.trim(),
     };
     await api.request('PATCH', paths.partner.branch(branchId), {
-      schema: BranchSchema,
+      schema: BranchDetailSchema,
       body: { address },
     });
     onNext({ line1: line1.trim(), line2: line2.trim(), locality: locality.trim(), city: city.trim(), state: state.trim(), postalCode: postalCode.trim() });
@@ -298,7 +298,7 @@ function Step4Contact({
     if (Object.keys(errs).length) { setErrors(errs); return; }
     setErrors({});
     await api.request('PATCH', paths.partner.branch(branchId), {
-      schema: BranchSchema,
+      schema: BranchDetailSchema,
       body: { phoneE164: `+91${phone.trim()}`, email: email.trim() || null },
     });
     onNext(phone.trim(), email.trim());
@@ -456,7 +456,7 @@ function Step6Review({
 
   const { run: submit, pending, error } = useMutation(async () => {
     await api.request('POST', paths.partner.branchSubmit(branchId), {
-      schema: BranchSchema,
+      schema: BranchDetailSchema,
       body: {},
     });
     await reload();

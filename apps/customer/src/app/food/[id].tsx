@@ -24,6 +24,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { unitPrice } from '@/features/cart/pricing';
 import { MAX_LINE_QUANTITY, toCartRestaurant } from '@/features/cart/store';
 import { useAddToCart } from '@/features/cart/useAddToCart';
+import { blockedMessage, dishBlocker } from '@/features/food/availability';
+import { useSyncCartAvailability } from '@/features/food/useDishCartControls';
 import { OptionGroupPicker } from '@/features/menu/components/OptionGroupPicker';
 import {
   initialSelection,
@@ -49,6 +51,7 @@ export default function FoodDetailsScreen() {
 
   const food = result.status === 'success' ? result.data.food : undefined;
   const restaurant = result.status === 'success' ? result.data.restaurant : undefined;
+  useSyncCartAvailability(restaurant ? [restaurant] : undefined);
 
   const selection = useMemo(() => edited ?? (food ? initialSelection(food) : {}), [edited, food]);
 
@@ -86,7 +89,8 @@ export default function FoodDetailsScreen() {
     );
   }
 
-  const canOrder = restaurant.isOpen && food.isAvailable;
+  const blocker = dishBlocker(food, restaurant);
+  const canOrder = blocker === null;
 
   const onAdd = () => {
     if (issues.length > 0) {
@@ -162,9 +166,7 @@ export default function FoodDetailsScreen() {
           </>
         ) : (
           <Text variant="body" color="textSecondary" align="center" style={styles.flex}>
-            {restaurant.isOpen
-              ? 'This dish is unavailable right now.'
-              : `${restaurant.name} is closed right now.`}
+            {blocker ? blockedMessage(blocker, restaurant) : null}
           </Text>
         )}
       </View>

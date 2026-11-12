@@ -4,12 +4,12 @@ import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useSessionStore } from '@/features/auth/session';
 import { useServices } from '@/services';
 
 /** Order history. Ordering is not built yet, so the list is always empty in this phase. */
 export default function OrdersScreen() {
-  const { orders } = useServices();
-  const result = useQuery('orders', () => orders.listOrders());
+  const isSignedIn = useSessionStore((s) => s.session !== null);
 
   return (
     <SafeAreaView edges={['top']} style={styles.screen}>
@@ -18,20 +18,36 @@ export default function OrdersScreen() {
           Orders
         </Text>
       </View>
-      {result.status === 'loading' ? (
-        <LoadingState label="Loading your orders" />
-      ) : result.status === 'error' ? (
-        <ErrorState onRetry={result.refetch} />
+      {isSignedIn ? (
+        <OrderHistory />
       ) : (
         <EmptyState
           icon="receipt-outline"
-          title="No orders yet"
-          message="When you place an order, you can track it and reorder from here."
-          actionLabel="Find something to eat"
-          onAction={() => router.navigate('/home')}
+          title="Log in to see your orders"
+          message="Your order history and tracking are linked to your account. Browsing doesn't need one."
+          actionLabel="Log in or sign up"
+          onAction={() => router.push({ pathname: '/login', params: { reason: 'orders' } })}
         />
       )}
     </SafeAreaView>
+  );
+}
+
+/** Only mounted for signed-in customers, so guests never request account data. */
+function OrderHistory() {
+  const { orders } = useServices();
+  const result = useQuery('orders', () => orders.listOrders());
+
+  if (result.status === 'loading') return <LoadingState label="Loading your orders" />;
+  if (result.status === 'error') return <ErrorState onRetry={result.refetch} />;
+  return (
+    <EmptyState
+      icon="receipt-outline"
+      title="No orders yet"
+      message="When you place an order, you can track it and reorder from here."
+      actionLabel="Find something to eat"
+      onAction={() => router.navigate('/home')}
+    />
   );
 }
 

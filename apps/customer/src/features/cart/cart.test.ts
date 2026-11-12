@@ -17,12 +17,13 @@ const food = (id: string, pricePaise: number, restaurantId = 'r-1'): Food => ({
   optionGroups: [],
 });
 
-const restaurant = (id: string, offer?: Offer): CartRestaurant => ({
+const restaurant = (id: string, offer?: Offer, isOpen = true): CartRestaurant => ({
   id,
   name: `Restaurant ${id}`,
   deliveryFee: money(3000),
   minimumOrder: money(20000),
   offer,
+  isOpen,
 });
 
 const cheese: SelectedOption = {
@@ -90,6 +91,7 @@ describe('pricing', () => {
       subtotal: money(12000),
       deliveryFee: money(3000),
       discount: money(0),
+      nightCharge: money(0),
       total: money(15000),
       shortOfMinimum: money(8000),
       shortOfOffer: money(13000),
@@ -190,5 +192,63 @@ describe('cart store', () => {
     const b = { ...cheese, optionId: 'b' };
     const a = { ...cheese, optionId: 'a' };
     expect(lineIdFor('f', [b, a])).toBe(lineIdFor('f', [a, b]));
+  });
+});
+
+describe('closed restaurants', () => {
+  const add = (open: boolean, f = food('a', 12000)) =>
+    useCartStore.getState().addItem({
+      food: f,
+      restaurant: restaurant('r-1', undefined, open),
+      options: [],
+      quantity: 1,
+    });
+
+  it('refuses new items from a closed restaurant', () => {
+    expect(add(false)).toBe('closed');
+    expect(useCartStore.getState().items).toHaveLength(0);
+  });
+
+  it('refuses unavailable dishes', () => {
+    expect(add(true, { ...food('a', 12000), isAvailable: false })).toBe('unavailable');
+    expect(useCartStore.getState().items).toHaveLength(0);
+  });
+
+  it('does not increase quantities once the restaurant closes, but still allows removal', () => {
+    add(true);
+    const [line] = useCartStore.getState().items;
+    useCartStore.getState().syncAvailability('r-1', { isOpen: false, opensAt: '11:00' });
+    expect(useCartStore.getState().restaurant).toMatchObject({ isOpen: false, opensAt: '11:00' });
+
+    useCartStore.getState().increment(line!.lineId);
+    expect(useCartStore.getState().items[0]?.quantity).toBe(1);
+    expect(add(false)).toBe('closed');
+
+    useCartStore.getState().decrement(line!.lineId);
+    expect(useCartStore.getState().items).toHaveLength(0);
+  });
+
+  it('resumes normal behaviour when the restaurant reopens', () => {
+    add(true);
+    const [line] = useCartStore.getState().items;
+    useCartStore.getState().syncAvailability('r-1', { isOpen: false });
+    useCartStore.getState().syncAvailability('r-1', { isOpen: true });
+    useCartStore.getState().increment(line!.lineId);
+    expect(useCartStore.getState().items[0]?.quantity).toBe(2);
+  });
+
+  it('ignores availability updates for other restaurants', () => {
+    add(true);
+    useCartStore.getState().syncAvailability('r-2', { isOpen: false });
+    expect(useCartStore.getState().restaurant?.isOpen).toBe(true);
+  });
+
+  it('never lets a quantity go below zero', () => {
+    add(true);
+    const [line] = useCartStore.getState().items;
+    useCartStore.getState().decrement(line!.lineId);
+    useCartStore.getState().decrement(line!.lineId);
+    expect(useCartStore.getState().items).toHaveLength(0);
+    expect(quantityOfFood(useCartStore.getState().items, 'a')).toBe(0);
   });
 });

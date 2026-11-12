@@ -68,6 +68,30 @@ describe('payout accounts', () => {
     ).toBe(404);
   });
 
+  it('accepts PUT with the same validation, encryption and owner checks as POST (app compatibility)', async () => {
+    ctx = await createTestContext();
+    const owner = await signInOwner(ctx);
+    const { branch } = await createActiveBranch(ctx, owner.userId);
+    const url = `/partner/branches/${branch.id}/payout-account`;
+
+    const res = await call<AccountResponse>(ctx, 'PUT', url, { token: owner.token, body: details });
+    expect(res.status).toBe(200);
+    expect(JSON.stringify(res.body)).not.toContain(ACCOUNT);
+    expect(res.body.current).toMatchObject({ status: 'pending_verification', accountNumberLast4: '9012', ifsc: 'HDFC0001234' });
+    expect((await call<AccountResponse>(ctx, 'GET', url, { token: owner.token })).body.current?.id).toBe(res.body.current?.id);
+
+    const mismatch = await call<{ code: string }>(ctx, 'PUT', url, { token: owner.token, body: { ...details, confirmAccountNumber: '999' } });
+    expect(mismatch.status).toBe(422);
+    expect(mismatch.body.code).toBe('validation');
+    const { confirmAccountNumber: _omitted, ...withoutConfirmation } = details;
+    expect((await call(ctx, 'PUT', url, { token: owner.token, body: withoutConfirmation })).status).toBe(422);
+
+    const intruder = await signInOwner(ctx);
+    await createActiveBranch(ctx, intruder.userId);
+    expect((await call(ctx, 'PUT', url, { token: intruder.token, body: details })).status).toBe(404);
+    expect((await call(ctx, 'PUT', url, { body: details })).status).toBe(401);
+  });
+
   it('requires re-verification after a change and blocks payouts until then', async () => {
     const provider = new FakePayoutProvider();
     ctx = await createTestContext({ payoutProvider: provider, config: { MIN_WITHDRAWAL_MINOR: '10000' } });

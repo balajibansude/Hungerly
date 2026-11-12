@@ -198,4 +198,25 @@ describe('reviews', () => {
         .status,
     ).toBe(404);
   });
+
+  it('accepts POST for replies with the same rules as PUT (app compatibility)', async () => {
+    const url = `/partner/branches/${branchId}/reviews/${reviewIds[1]}/reply`;
+    const first = await call<Page['items'][number]>(ctx, 'POST', url, {
+      token: owner.token,
+      body: { body: 'Thank you for ordering!' },
+    });
+    expect(first.status).toBe(200);
+    expect(first.body).toMatchObject({ id: reviewIds[1], reply: { body: 'Thank you for ordering!' } });
+    const edit = await call<Page['items'][number]>(ctx, 'POST', url, {
+      token: owner.token,
+      body: { body: 'Thanks — see you again!' },
+    });
+    expect(edit.body.reply?.body).toBe('Thanks — see you again!');
+    expect((await call(ctx, 'POST', url, { token: owner.token, body: { body: 'x' } })).status).toBe(422);
+
+    const intruder = await signInOwner(ctx);
+    await createActiveBranch(ctx, intruder.userId, { name: 'Other Again' });
+    expect((await call(ctx, 'POST', url, { token: intruder.token, body: { body: 'Hijack' } })).status).toBe(404);
+    expect((await call(ctx, 'POST', url, { body: { body: 'Hijack' } })).status).toBe(401);
+  });
 });

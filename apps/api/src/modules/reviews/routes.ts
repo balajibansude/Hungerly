@@ -63,12 +63,12 @@ export async function reviewRoutes(api: FastifyInstance) {
     },
   );
 
-  app.put(
-    paths.partner.reviewReply(':branchId', ':reviewId'),
-    {
-      schema: { params: ReviewParams, body: ReplyToReviewSchema, response: { 200: ReviewSchema } },
-    },
-    async (req) => {
+  // POST is an alias of PUT for app compatibility: both create the reply or edit it in the window.
+  app.route({
+    method: ['PUT', 'POST'],
+    url: paths.partner.reviewReply(':branchId', ':reviewId'),
+    schema: { params: ReviewParams, body: ReplyToReviewSchema, response: { 200: ReviewSchema } },
+    handler: async (req) => {
       const { auth, branch } = await requireOwnedBranch(req, req.params.branchId);
       const review = await requireBranchReview(deps.db, branch.id, req.params.reviewId);
       const now = deps.clock();
@@ -110,7 +110,7 @@ export async function reviewRoutes(api: FastifyInstance) {
       });
       return (await toReviewDtos(deps.db, [review], editHours()))[0]!;
     },
-  );
+  });
 
   app.post(
     paths.partner.reviewReport(':branchId', ':reviewId'),

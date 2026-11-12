@@ -2,6 +2,8 @@ import type { Address } from '@hungerly/types';
 import { Icon, screenGutter, spacing, Text } from '@hungerly/ui';
 import { StyleSheet, View } from 'react-native';
 
+import { BrandLogo } from '@/features/brand/BrandLogo';
+
 const labels: Record<Address['label'], string> = {
   home: 'Home',
   work: 'Work',
@@ -19,25 +21,28 @@ export function HomeHeader({
 }) {
   return (
     <View style={styles.container}>
-      <View
-        style={styles.location}
-        accessible
-        accessibilityLabel={
-          address
-            ? `Delivering to ${labels[address.label]}, ${address.locality}, ${address.city}`
-            : 'Finding your location'
-        }
-      >
-        <Icon name="location" color="primary" />
-        <View style={styles.flex}>
-          <Text variant="label" numberOfLines={1}>
-            {address ? labels[address.label] : 'Locating…'}
+      <View style={styles.topRow}>
+        <BrandLogo height={48} />
+        <View
+          style={styles.location}
+          accessible
+          accessibilityLabel={
+            address
+              ? `Delivering to ${labels[address.label]}, ${address.locality}, ${address.city}`
+              : 'Delivery location not set yet'
+          }
+        >
+          <Text variant="caption" color="textTertiary">
+            Deliver to
           </Text>
-          <Text variant="bodySmall" color="textSecondary" numberOfLines={1}>
-            {address
-              ? `${address.line2 ? `${address.line2}, ` : ''}${address.locality}, ${address.city}`
-              : ' '}
-          </Text>
+          <View style={styles.addressRow}>
+            <Icon name="location" size="sm" color="primary" />
+            <Text variant="label" numberOfLines={1} style={styles.flex}>
+              {address
+                ? `${labels[address.label]} · ${address.locality}, ${address.city}`
+                : 'Choose at checkout'}
+            </Text>
+          </View>
         </View>
       </View>
       <View style={styles.greeting}>
@@ -54,7 +59,9 @@ export function HomeHeader({
 
 const styles = StyleSheet.create({
   container: { paddingHorizontal: screenGutter, gap: spacing.lg, paddingTop: spacing.sm },
-  location: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  location: { flex: 1, gap: spacing.xxs },
+  addressRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   flex: { flex: 1 },
   greeting: { gap: spacing.xxs },
 });

@@ -1,8 +1,10 @@
 import { importPKCS8, importSPKI, jwtVerify, SignJWT, type CryptoKey } from 'jose';
 
 import { pem, type Config } from '../config';
+import type { AUDIENCES } from '../db/schema';
 
-export type Audience = 'partner' | 'admin';
+/** Session audience, derived from the `auth_sessions.audience` values so the two never drift. */
+export type Audience = (typeof AUDIENCES)[number];
 
 export interface AccessClaims {
   userId: string;

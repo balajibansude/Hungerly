@@ -68,6 +68,33 @@ describe('document uploads', () => {
     expect(missingFile.statusCode).toBeGreaterThanOrEqual(400);
   });
 
+  it('accepts an FSSAI licence without an expiry date and stores it as null', async () => {
+    const { expiresOn: _omitted, ...withoutExpiry } = LICENCE_FIELDS;
+    // A separate branch, so Alice's main licence (used by later tests) is not superseded.
+    const { branchId } = await onboardBranch(ctx, alice, 'No Expiry Kitchen');
+    const res = await uploadDocument<{ id: string; expiresOn: string | null; status: string }>(
+      ctx,
+      alice.token,
+      branchId,
+      withoutExpiry,
+    );
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ expiresOn: null, status: 'pending_review' });
+    const [row] = await ctx.db.select().from(documents).where(eq(documents.id, res.body.id));
+    expect(row?.expiresOn).toBeNull();
+  });
+
+  it('still requires the 14-digit licence number when the expiry date is left out', async () => {
+    const { expiresOn: _omitted, ...withoutExpiry } = LICENCE_FIELDS;
+    const res = await uploadDocument<{ errors: Record<string, string[]> }>(ctx, alice.token, aliceBranch.branchId, {
+      ...withoutExpiry,
+      documentNumber: '1234',
+    });
+    expect(res.status).toBe(422);
+    expect(res.body.errors.documentNumber).toBeDefined();
+    expect(res.body.errors.expiresOn).toBeUndefined();
+  });
+
   it('a new upload supersedes the previous one of the same type', async () => {
     const { branchId } = aliceBranch;
     const gst1 = await uploadDocument<{ id: string }>(ctx, alice.token, branchId, { type: 'gst_certificate' }, PNG_BYTES);

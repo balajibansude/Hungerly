@@ -18,7 +18,7 @@ import {
   ScrollView,
   StyleSheet,
   View,
-  type TextInput,
+  type TextInputInstance,
 } from 'react-native';
 
 import { describeDestination, identifierFromParams } from '@/features/auth/loginForm';
@@ -35,10 +35,11 @@ export default function VerifyScreen() {
     requestId: string;
     resendAfter?: string;
     devDelivery?: string;
+    mode?: string;
   }>();
   const identifier = identifierFromParams(params.channel, params.destination);
   const signIn = useSessionStore((s) => s.signIn);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
 
   const [requestId, setRequestId] = useState(params.requestId);
   const [code, setCode] = useState('');
@@ -115,10 +116,12 @@ export default function VerifyScreen() {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <Text variant="h1" accessibilityRole="header">
-              Enter the code
+              {params.mode === 'register' ? 'Create your account' : 'Enter the code'}
             </Text>
             <Text variant="body" color="textSecondary">
-              Sent {describeDestination(identifier)}.
+              {params.mode === 'register'
+                ? `We sent a 6-digit code to ${describeDestination(identifier)}. Enter it to continue.`
+                : `Sent ${describeDestination(identifier)}.`}
             </Text>
           </View>
 

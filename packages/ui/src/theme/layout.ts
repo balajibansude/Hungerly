@@ -27,10 +27,11 @@ export const radius = {
   xl: 24,
   pill: 999,
   card: 20,
-  button: 14,
-  input: 14,
+  /** Primary actions are full pills (Foodu-style). */
+  button: 999,
+  input: 16,
   modal: 28,
-  image: 16,
+  image: 18,
 } as const;
 
 /** Horizontal page padding used by every screen. */
@@ -40,8 +41,8 @@ export const screenGutter = spacing.xl;
 export const minTouchTarget = 48;
 
 /**
- * Elevation is used sparingly: floating elements (cart bar, dialogs) only.
- * Cards rely on borders so lists stay calm and fast to render.
+ * Elevation is used sparingly: `low` for cards that sit on white, `high` for floating
+ * elements (cart bar, dialogs), `brand` for the soft green glow under primary buttons.
  */
 export const elevation = {
   none: {},
@@ -62,6 +63,15 @@ export const elevation = {
       shadowOffset: { width: 0, height: 8 },
     },
     default: { elevation: 8 },
+  }),
+  brand: Platform.select<ViewStyle>({
+    ios: {
+      shadowColor: colors.primary,
+      shadowOpacity: 0.28,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 6 },
+    },
+    default: { elevation: 4, shadowColor: colors.primary },
   }),
 } as const;
 

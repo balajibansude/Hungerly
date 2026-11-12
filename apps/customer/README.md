@@ -1,4 +1,4 @@
-# Hungerly — Customer App
+# Swaadone — Customer App
 
 Expo (React Native) customer app. **Prototype**: runs entirely on mock data; no backend, payments or real authentication.
 

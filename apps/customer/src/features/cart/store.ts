@@ -10,9 +10,17 @@ export interface CartRestaurant {
   deliveryFee: Restaurant['deliveryFee'];
   minimumOrder: Restaurant['minimumOrder'];
   offer?: Restaurant['offer'];
+  /** Latest known availability; refreshed by `syncAvailability` whenever screens load it. */
+  isOpen: boolean;
+  opensAt?: Restaurant['opensAt'];
 }
 
-export type AddResult = 'added' | 'conflict';
+/**
+ * `closed` / `unavailable`: nothing was added. The cart enforces this itself, so a stale
+ * or mis-rendered button can never add a dish from a closed restaurant. The server
+ * validates again when the order is placed.
+ */
+export type AddResult = 'added' | 'conflict' | 'closed' | 'unavailable';
 
 interface CartState {
   restaurant: CartRestaurant | null;
@@ -28,8 +36,15 @@ interface CartState {
     quantity: number;
     replace?: boolean;
   }) => AddResult;
+  /** No-op while the cart's restaurant is closed. */
   increment: (lineId: string) => void;
+  /** Always allowed: customers can remove items even while the restaurant is closed. */
   decrement: (lineId: string) => void;
+  /** Updates the cart restaurant's open state from fresher data; ignores other restaurants. */
+  syncAvailability: (
+    restaurantId: Id,
+    availability: Pick<CartRestaurant, 'isOpen' | 'opensAt'>,
+  ) => void;
   remove: (lineId: string) => void;
   clear: () => void;
 }
@@ -49,6 +64,8 @@ export const useCartStore = create<CartState>()((set, get) => ({
   items: [],
 
   addItem: ({ food, restaurant, options, quantity, replace = false }) => {
+    if (!restaurant.isOpen) return 'closed';
+    if (!food.isAvailable) return 'unavailable';
     const current = get();
     if (
       current.restaurant &&
@@ -87,11 +104,23 @@ export const useCartStore = create<CartState>()((set, get) => ({
   },
 
   increment: (lineId) =>
-    set((state) => ({
-      items: state.items.map((item) =>
-        item.lineId === lineId ? { ...item, quantity: clamp(item.quantity + 1) } : item,
-      ),
-    })),
+    set((state) =>
+      state.restaurant?.isOpen
+        ? {
+            items: state.items.map((item) =>
+              item.lineId === lineId ? { ...item, quantity: clamp(item.quantity + 1) } : item,
+            ),
+          }
+        : state,
+    ),
+
+  syncAvailability: (restaurantId, { isOpen, opensAt }) =>
+    set((state) => {
+      const current = state.restaurant;
+      if (!current || current.id !== restaurantId) return state;
+      if (current.isOpen === isOpen && current.opensAt === opensAt) return state;
+      return { restaurant: { ...current, isOpen, opensAt } };
+    }),
 
   decrement: (lineId) =>
     set((state) => {
@@ -122,5 +151,7 @@ export function toCartRestaurant(restaurant: Restaurant): CartRestaurant {
     deliveryFee: restaurant.deliveryFee,
     minimumOrder: restaurant.minimumOrder,
     offer: restaurant.offer,
+    isOpen: restaurant.isOpen,
+    opensAt: restaurant.opensAt,
   };
 }

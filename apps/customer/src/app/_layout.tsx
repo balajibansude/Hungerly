@@ -15,6 +15,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useSessionStore } from '@/features/auth/session';
+import { FavoritesSync } from '@/features/favorites/FavoritesSync';
 import { ServicesProvider } from '@/services';
 
 // Keep the native splash visible until fonts are ready, so text never flashes unstyled.
@@ -44,29 +45,44 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <ServicesProvider>
           <StatusBar style="dark" />
+          <FavoritesSync />
           <Stack
             screenOptions={{
               headerShown: false,
               contentStyle: { backgroundColor: colors.background },
             }}
           >
-            {/* Startup gate: decides between onboarding, login and the app. */}
+            {/* Startup: a short logo splash, then Home. */}
             <Stack.Screen name="index" options={{ animation: 'fade' }} />
 
+            {/* Browsing never requires an account: guests can explore and build a cart. */}
+            <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+            <Stack.Screen name="restaurants/index" />
+            <Stack.Screen name="restaurants/[id]" />
+            <Stack.Screen name="food/[id]" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="cuisines" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="cart" />
+            <Stack.Screen name="leaderboard" />
+            {/* Shows first-time setup or profile editing; redirects home with neither. */}
+            <Stack.Screen name="profile-setup" />
+
+            {/*
+              Signing in removes the (auth) screens from the stack, which reveals the screen
+              the customer started from (e.g. the cart at checkout) with its state intact.
+            */}
             <Stack.Protected guard={!isSignedIn}>
               <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
             </Stack.Protected>
 
+            {/* Account data. A UX guard only — the backend enforces access (SECURITY.md). */}
             <Stack.Protected guard={isSignedIn}>
-              <Stack.Screen
-                name="profile-setup"
-                options={{ animation: 'fade', gestureEnabled: false }}
-              />
-              <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-              <Stack.Screen name="restaurants/index" />
-              <Stack.Screen name="restaurants/[id]" />
-              <Stack.Screen name="food/[id]" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="cart" />
+              <Stack.Screen name="favorites" />
+              <Stack.Screen name="addresses" />
+              <Stack.Screen name="address-form" />
+              {/* After checkout: Confirmation → Instructions → Tracking, for one placed order. */}
+              <Stack.Screen name="order/[id]/confirmation" options={{ gestureEnabled: false }} />
+              <Stack.Screen name="order/[id]/instructions" />
+              <Stack.Screen name="order/[id]/tracking" />
             </Stack.Protected>
           </Stack>
         </ServicesProvider>

@@ -1,4 +1,6 @@
+import { BranchDetailSchema, paths } from '@hungerly/api-client';
 import {
+  Badge,
   Button,
   Card,
   colors,
@@ -15,36 +17,37 @@ import { formatE164India } from '@hungerly/utils';
 import { router } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { useSessionStore } from '@/features/auth/session';
+import { resumableBranch, useSessionStore } from '@/features/auth/session';
 import { useSignOut } from '@/features/auth/useSignOut';
-import { useOnboardingStore } from '@/features/onboarding/draft';
-import { stepByKey } from '@/features/onboarding/steps';
+import { branchStatusMeta } from '@/features/branch/status';
+import { useApiQuery } from '@/lib/hooks';
 
-/** What registration will ask for (R3), so owners can get it ready. */
+/** What the registration wizard will ask for, shown so owners can prepare. The menu is added later from the dashboard. */
 const steps: { icon: IconName; title: string; detail: string }[] = [
-  {
-    icon: 'storefront-outline',
-    title: 'Restaurant details',
-    detail: 'Name, cuisines, veg or mixed',
-  },
-  { icon: 'person-outline', title: 'Owner or manager', detail: 'Who we contact about the account' },
-  { icon: 'location-outline', title: 'Address', detail: 'Where riders pick up orders' },
-  { icon: 'call-outline', title: 'Contact', detail: 'Phone and email for customers and support' },
-  { icon: 'time-outline', title: 'Operations', detail: 'Opening hours, prep time, minimum order' },
+  { icon: 'storefront-outline', title: 'Restaurant details', detail: 'Name, cuisines, food type, logo' },
+  { icon: 'person-outline', title: 'Owner information', detail: 'Name, email and role' },
+  { icon: 'location-outline', title: 'Address', detail: 'Restaurant location and delivery radius' },
+  { icon: 'time-outline', title: 'Operations', detail: 'Opening hours, services and prep time' },
+  { icon: 'document-text-outline', title: 'Business verification', detail: 'FSSAI licence, PAN, GSTIN' },
+  { icon: 'card-outline', title: 'Bank & payout', detail: 'Account details for payouts' },
+  { icon: 'checkmark-done-outline', title: 'Review & submit', detail: 'Check your details and submit for approval' },
 ];
 
 /** Entry to onboarding for an account that does not belong to any restaurant yet. */
 export default function WelcomeScreen() {
   const user = useSessionStore((s) => s.session?.user);
+  // An existing draft or rejected branch: registration continues with it (no duplicate branch).
+  const existing = useSessionStore((s) => resumableBranch(s.session));
   const { signOut, signingOut } = useSignOut();
-  const startRegistration = useOnboardingStore((s) => s.start);
-  const hasDraft = useOnboardingStore((s) => user !== undefined && s.ownerUserId === user.id);
+  // Only rejected branches need the detail: it carries the admin's rejection reason.
+  const detail = useApiQuery(
+    existing?.status === 'rejected' ? paths.partner.branch(existing.id) : null,
+    BranchDetailSchema,
+  );
+  const rejectionReason = detail.status === 'success' ? detail.data.branch.statusReason : null;
 
   const begin = () => {
-    if (!user) return;
-    // Resumes this person's draft from this session, or starts a clean one.
-    startRegistration(user);
-    router.push(stepByKey('restaurant').href as any);
+    router.push('/register');
   };
   const signedInAs = user?.phoneE164 ? formatE164India(user.phoneE164) : (user?.email ?? '');
 
@@ -63,6 +66,24 @@ export default function WelcomeScreen() {
             owners finish in about 10 minutes.
           </Text>
         </View>
+
+        {existing && (
+          <Card style={styles.resumeCard}>
+            <Text variant="label">{existing.name}</Text>
+            <Badge
+              label={branchStatusMeta[existing.status].label}
+              tone={branchStatusMeta[existing.status].tone}
+            />
+            <Text variant="bodySmall" color="textSecondary">
+              {branchStatusMeta[existing.status].hint}
+            </Text>
+            {rejectionReason && (
+              <Text variant="bodySmall" color="error" accessibilityLabel={`Review note: ${rejectionReason}`}>
+                Review note: {rejectionReason}
+              </Text>
+            )}
+          </Card>
+        )}
 
         <Card>
           {steps.map((step, index) => (
@@ -88,7 +109,7 @@ export default function WelcomeScreen() {
         <View style={styles.spacer} />
 
         <Button
-          label={hasDraft ? 'Continue registration' : 'Start registration'}
+          label={existing ? 'Continue registration' : 'Start registration'}
           icon="arrow-forward"
           iconPosition="end"
           onPress={begin}
@@ -99,7 +120,7 @@ export default function WelcomeScreen() {
           Signed in as {signedInAs}
         </Text>
         <Button
-          label="Use a different account"
+          label="Sign out and go to login"
           variant="outline"
           icon="log-out-outline"
           onPress={signOut}
@@ -121,6 +142,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
   },
   hero: { gap: spacing.sm },
+  resumeCard: { gap: spacing.sm, padding: spacing.lg },
   heroIcon: {
     width: 64,
     height: 64,

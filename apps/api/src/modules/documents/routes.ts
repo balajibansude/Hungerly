@@ -116,8 +116,8 @@ export async function documentRoutes(api: FastifyInstance) {
       if (!fields.documentNumber || !/^\d{14}$/.test(fields.documentNumber)) {
         errors.documentNumber = ['Enter the 14-digit FSSAI licence or registration number.'];
       }
-      if (!fields.expiresOn) errors.expiresOn = ['Enter the licence expiry date.'];
-      else if (fields.expiresOn <= istDate(now())) errors.expiresOn = ['This licence has already expired.'];
+      // The expiry date is optional (registration no longer asks for it); one that is given must be in the future.
+      if (fields.expiresOn && fields.expiresOn <= istDate(now())) errors.expiresOn = ['This licence has already expired.'];
       if (Object.keys(errors).length) throw validationError('Check the licence details.', errors);
     } else if (fields.expiresOn && fields.expiresOn <= istDate(now())) {
       throw validationError('This document has already expired.', { expiresOn: ['Choose a future expiry date.'] });

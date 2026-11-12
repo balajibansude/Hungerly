@@ -15,6 +15,16 @@ export const paths = {
     adminLogin: '/admin/auth/login',
   },
 
+  customer: {
+    auth: {
+      /** OTP request is shared: `auth.otpRequest`. */
+      otpVerify: '/customer/auth/otp/verify',
+      refresh: '/customer/auth/refresh',
+      logout: '/customer/auth/logout',
+    },
+    me: '/customer/me',
+  },
+
   partner: {
     me: '/partner/me',
     business: '/partner/business',

@@ -12,11 +12,20 @@
  */
 
 import {
+  BranchDetailSchema,
+  BusinessSchema,
+  MenuItemSchema,
+  MenuSchema,
+  OkSchema,
   OtpChallengeSchema,
+  paths,
+  ReviewPageSchema,
+  ReviewSchema,
   SignInResponseSchema,
   TokenPairSchema,
 } from '@hungerly/api-client';
 
+import { MASALA_JUNCTION_ID } from '@/mock';
 import { DEMO_PHONE_E164, PROTOTYPE_OTP } from '@/services/mock';
 
 import { mockFetch } from './mockFetch';
@@ -183,5 +192,142 @@ describe('GET /partner/me', () => {
     if (!parsed.success) {
       throw new Error(`Schema mismatch: ${JSON.stringify(parsed.error.issues)}`);
     }
+  });
+});
+
+describe('PATCH /partner/business', () => {
+  it('edits only the fields sent and returns a valid Business', async () => {
+    const before = (await get('/partner/business')).json;
+    const res = await mockFetch(`${BASE}/partner/business`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ displayName: 'Renamed Kitchen' }),
+    });
+    expect(res.status).toBe(200);
+    const parsed = BusinessSchema.safeParse(await res.json());
+    if (!parsed.success) {
+      throw new Error(`Schema mismatch: ${JSON.stringify(parsed.error.issues)}`);
+    }
+    expect(parsed.data.displayName).toBe('Renamed Kitchen');
+    expect(parsed.data.legalName).toBe(before.legalName);
+    expect(parsed.data.id).toBe(before.id);
+  });
+});
+
+describe('PUT /partner/branches/:id/menu/items/:itemId/availability', () => {
+  it('returns the single updated MenuItem, like the real API', async () => {
+    const menu = MenuSchema.parse((await get(paths.partner.menu(MASALA_JUNCTION_ID))).json);
+    const item = menu.categories.flatMap((c) => c.items)[0]!;
+    const toggle = async (isAvailable: boolean) =>
+      mockFetch(`${BASE}${paths.partner.menuItemAvailability(MASALA_JUNCTION_ID, item.id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isAvailable }),
+      });
+    try {
+      const res = await toggle(!item.isAvailable);
+      expect(res.status).toBe(200);
+      const parsed = MenuItemSchema.safeParse(await res.json());
+      if (!parsed.success) {
+        throw new Error(`Schema mismatch: ${JSON.stringify(parsed.error.issues)}`);
+      }
+      expect(parsed.data.id).toBe(item.id);
+      expect(parsed.data.isAvailable).toBe(!item.isAvailable);
+    } finally {
+      await toggle(item.isAvailable);
+    }
+  });
+
+  it('is 404 for a menu item that does not exist', async () => {
+    const res = await mockFetch(
+      `${BASE}${paths.partner.menuItemAvailability(MASALA_JUNCTION_ID, '00000000-0000-4000-8000-0000000000ff')}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isAvailable: false }),
+      },
+    );
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('POST /partner/branches/:id/reviews/:reviewId/reply and /report', () => {
+  const send = (path: string, body: unknown) =>
+    mockFetch(`${BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+  it('returns the updated Review for a reply, like the real API', async () => {
+    const page = ReviewPageSchema.parse((await get(paths.partner.reviews(MASALA_JUNCTION_ID))).json);
+    const review = page.items[0]!;
+    const res = await send(paths.partner.reviewReply(MASALA_JUNCTION_ID, review.id), { body: 'Thank you!' });
+    expect(res.status).toBe(200);
+    const parsed = ReviewSchema.safeParse(await res.json());
+    if (!parsed.success) {
+      throw new Error(`Schema mismatch: ${JSON.stringify(parsed.error.issues)}`);
+    }
+    expect(parsed.data.id).toBe(review.id);
+    expect(parsed.data.reply?.body).toBe('Thank you!');
+  });
+
+  it('is 404 for a review that does not exist', async () => {
+    const res = await send(
+      paths.partner.reviewReply(MASALA_JUNCTION_ID, '00000000-0000-4000-8000-0000000000ff'),
+      { body: 'Thank you!' },
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it('answers a report with { ok: true }', async () => {
+    const page = ReviewPageSchema.parse((await get(paths.partner.reviews(MASALA_JUNCTION_ID))).json);
+    const res = await send(paths.partner.reviewReport(MASALA_JUNCTION_ID, page.items[0]!.id), {
+      reason: 'other',
+      note: null,
+    });
+    expect(res.status).toBe(200);
+    expect(OkSchema.safeParse(await res.json()).success).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Registration step 1: create branch, then PATCH details
+// ---------------------------------------------------------------------------
+
+describe('POST /partner/branches + PATCH /partner/branches/:id', () => {
+  async function patch(path: string, body: unknown) {
+    const res = await mockFetch(`${BASE}${path}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return { status: res.status, ok: res.ok, json: await res.json() };
+  }
+
+  // The real API wraps the branch in a BranchDetail envelope: { branch, onboarding }.
+  function expectBranch(json: unknown) {
+    const parsed = BranchDetailSchema.safeParse(json);
+    if (!parsed.success) {
+      throw new Error(`Schema mismatch: ${JSON.stringify(parsed.error.issues)}`);
+    }
+    return parsed.data.branch;
+  }
+
+  // Mirrors the body register.tsx sends: description is trimmed, or undefined when blank.
+  it.each([
+    ['filled', { description: 'Home-style thalis.', cuisines: ['North Indian'], foodType: 'veg_only' }],
+    ['empty', { description: '', cuisines: ['North Indian'], foodType: 'veg_only' }],
+    ['omitted', { cuisines: ['North Indian'], foodType: 'veg_only' }],
+  ])('returns a valid BranchDetail when description is %s', async (_label, details) => {
+    const created = expectBranch((await post('/partner/branches', { name: 'Thali House' })).json);
+
+    const { status, json } = await patch(`/partner/branches/${created.id}`, details);
+    expect(status).toBe(200);
+    const branch = expectBranch(json);
+    expect(branch.id).toBe(created.id);
+    if ('description' in details) expect(branch.description).toBe(details.description);
+    expect(branch.cuisines).toEqual(['North Indian']);
+    expect(branch.foodType).toBe('veg_only');
   });
 });

@@ -157,6 +157,15 @@ export async function menuRoutes(api: FastifyInstance) {
     },
   );
 
+  app.get(
+    paths.partner.menuItem(':branchId', ':itemId'),
+    { schema: { params: ItemParams, response: { 200: MenuItemSchema } } },
+    async (req) => {
+      const { branch } = await requireOwnedBranch(req, req.params.branchId);
+      return toMenuItem(deps.config, await requireItem(deps.db, branch.id, req.params.itemId));
+    },
+  );
+
   app.patch(
     paths.partner.menuItem(':branchId', ':itemId'),
     {
@@ -214,16 +223,16 @@ export async function menuRoutes(api: FastifyInstance) {
     },
   );
 
-  app.patch(
-    paths.partner.menuItemAvailability(':branchId', ':itemId'),
-    {
-      schema: {
-        params: ItemParams,
-        body: SetAvailabilitySchema,
-        response: { 200: MenuItemSchema },
-      },
+  // PUT is accepted alongside PATCH: the body is the full availability state either way.
+  app.route({
+    method: ['PATCH', 'PUT'],
+    url: paths.partner.menuItemAvailability(':branchId', ':itemId'),
+    schema: {
+      params: ItemParams,
+      body: SetAvailabilitySchema,
+      response: { 200: MenuItemSchema },
     },
-    async (req) => {
+    handler: async (req) => {
       const { auth, branch } = await requireOwnedBranch(req, req.params.branchId);
       const item = await requireItem(deps.db, branch.id, req.params.itemId);
       if (item.isArchived && req.body.isAvailable) {
@@ -246,7 +255,7 @@ export async function menuRoutes(api: FastifyInstance) {
       });
       return toMenuItem(deps.config, row!);
     },
-  );
+  });
 
   app.post(
     paths.partner.menuItemImage(':branchId', ':itemId'),

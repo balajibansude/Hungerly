@@ -54,7 +54,7 @@ export function RestaurantInfo({ restaurant }: { restaurant: Restaurant }) {
         >
           <Icon name="pricetag" color="primary" />
           <View style={styles.flex}>
-            <Text variant="label" color="primary">
+            <Text variant="label" color="primaryText">
               {restaurant.offer.label}
             </Text>
             <Text variant="bodySmall" color="textSecondary">

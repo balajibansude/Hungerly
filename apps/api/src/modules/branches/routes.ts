@@ -17,6 +17,7 @@ import {
   paths,
   ReplaceHoursSchema,
   UpdateBranchSchema,
+  UpdateBusinessSchema,
   UpdateIntakeSchema,
   UpsertBusinessSchema,
   type UpdateBranch,
@@ -71,11 +72,50 @@ const HOURS_MESSAGES: Record<WeeklyHoursIssue['code'], string> = {
 };
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
+function toBusinessDto(row: typeof businesses.$inferSelect) {
+  return {
+    id: row.id,
+    displayName: row.displayName,
+    legalName: row.legalName,
+    entityType: row.entityType,
+    gstin: row.gstin,
+  };
+}
+
 export async function branchRoutes(api: FastifyInstance) {
   const app = api.withTypeProvider<ZodTypeProvider>();
   const now = () => app.deps.clock();
 
   // --- Business -------------------------------------------------------------------
+  app.get(paths.partner.business, { schema: { response: { 200: BusinessSchema } } }, async (req) => {
+    const auth = await requireBusiness(req);
+    const [row] = await app.deps.db.select().from(businesses).where(eq(businesses.id, auth.businessId)).limit(1);
+    if (!row) throw notFound('Create your business profile first.');
+    return toBusinessDto(row);
+  });
+
+  // PUT creates or replaces; PATCH only edits an existing business.
+  app.patch(paths.partner.business, { schema: { body: UpdateBusinessSchema, response: { 200: BusinessSchema } } }, async (req) => {
+    const auth = await requireBusiness(req);
+    const { db } = app.deps;
+    const [row] = await db
+      .update(businesses)
+      .set({ ...req.body, updatedAt: now() })
+      .where(and(eq(businesses.id, auth.businessId), eq(businesses.ownerUserId, auth.userId)))
+      .returning();
+    if (!row) throw notFound('Create your business profile first.');
+    await audit(db, {
+      actorUserId: auth.userId,
+      actorType: 'owner',
+      action: 'business.updated',
+      entityType: 'business',
+      entityId: row.id,
+      metadata: { fields: Object.keys(req.body) },
+      ip: req.ip,
+    });
+    return toBusinessDto(row);
+  });
+
   app.put(paths.partner.business, { schema: { body: UpsertBusinessSchema, response: { 200: BusinessSchema } } }, async (req) => {
     const auth = await requirePartner(req);
     const { db } = app.deps;
@@ -93,13 +133,7 @@ export async function branchRoutes(api: FastifyInstance) {
       metadata: { fields: Object.keys(req.body) },
       ip: req.ip,
     });
-    return {
-      id: row!.id,
-      displayName: row!.displayName,
-      legalName: row!.legalName,
-      entityType: row!.entityType,
-      gstin: row!.gstin,
-    };
+    return toBusinessDto(row!);
   });
 
   // --- Branches --------------------------------------------------------------------
@@ -344,10 +378,12 @@ export async function branchRoutes(api: FastifyInstance) {
     return loadAvailability(app.deps.db, branch, now());
   });
 
-  app.patch(
-    paths.partner.intake(':branchId'),
-    { schema: { params: BranchParams, body: UpdateIntakeSchema, response: { 200: AvailabilitySchema } } },
-    async (req) => {
+  // PUT is an alias of PATCH for app compatibility; omitted fields are left unchanged.
+  app.route({
+    method: ['PATCH', 'PUT'],
+    url: paths.partner.intake(':branchId'),
+    schema: { params: BranchParams, body: UpdateIntakeSchema, response: { 200: AvailabilitySchema } },
+    handler: async (req) => {
       const { auth, branch } = await requireOwnedBranch(req, req.params.branchId);
       const { isAcceptingOrders, pauseMinutes, pauseReason } = req.body;
       const needsActive = isAcceptingOrders === true || (pauseMinutes !== undefined && pauseMinutes !== null);
@@ -374,5 +410,5 @@ export async function branchRoutes(api: FastifyInstance) {
       });
       return loadAvailability(db, updated!, now());
     },
-  );
+  });
 }
