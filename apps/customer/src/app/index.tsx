@@ -1,20 +1,19 @@
+import { BrandSplash } from '@hungerly/ui';
 import { Redirect } from 'expo-router';
 import { useEffect } from 'react';
 
-import { BrandSplash } from '@/features/auth/components/BrandSplash';
 import { entryRouteFor, useSessionStore } from '@/features/auth/session';
+import { brand } from '@/features/brand/brand';
 import { useServices } from '@/services';
 
 /**
- * Splash + routing gate. Shows the brand while the saved session is checked, then sends
- * the user to onboarding, login, profile setup or the app. Every auth transition returns
- * here so routing decisions live in one place.
+ * Startup: a short white splash with the logo while the saved session is checked, then
+ * straight to Home — signed in or as a guest. There is no intro to tap through.
  */
 export default function Index() {
   const { auth } = useServices();
   const isRestored = useSessionStore((s) => s.isRestored);
   const session = useSessionStore((s) => s.session);
-  const hasSeenOnboarding = useSessionStore((s) => s.hasSeenOnboarding);
   const markRestored = useSessionStore((s) => s.markRestored);
 
   useEffect(() => {
@@ -25,6 +24,6 @@ export default function Index() {
       .catch(() => markRestored(null));
   }, [auth, isRestored, markRestored]);
 
-  if (!isRestored) return <BrandSplash />;
-  return <Redirect href={entryRouteFor({ session, hasSeenOnboarding })} />;
+  if (!isRestored) return <BrandSplash name={brand.name} logo={brand.logo} />;
+  return <Redirect href={entryRouteFor({ session })} />;
 }

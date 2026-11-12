@@ -5,11 +5,12 @@ import { radius, spacing } from '../theme/layout';
 import { Icon, type IconName } from './Icon';
 import { Text } from './Text';
 
-export type BadgeTone = 'offer' | 'neutral' | 'success' | 'warning' | 'error' | 'dark';
+export type BadgeTone = 'offer' | 'neutral' | 'info' | 'success' | 'warning' | 'error' | 'dark';
 
 const tones: Record<BadgeTone, { background: ColorToken; text: ColorToken }> = {
-  offer: { background: 'primarySoft', text: 'primary' },
+  offer: { background: 'primarySoft', text: 'primaryText' },
   neutral: { background: 'surfaceMuted', text: 'textSecondary' },
+  info: { background: 'infoSoft', text: 'info' },
   success: { background: 'successSoft', text: 'success' },
   warning: { background: 'warningSoft', text: 'warning' },
   error: { background: 'errorSoft', text: 'error' },

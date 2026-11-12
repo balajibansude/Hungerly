@@ -1,10 +1,9 @@
+import { useQuery } from '@hungerly/app-core';
 import {
   Chip,
+  colors,
   EmptyState,
   ErrorState,
-  FoodTypeMark,
-  Price,
-  RemoteImage,
   screenGutter,
   SearchBarInput,
   SectionHeader,
@@ -13,11 +12,21 @@ import {
 } from '@hungerly/ui';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CART_BAR_SPACE, CartBar } from '@/features/cart/components/CartBar';
+import { useFavoriteToggle } from '@/features/favorites/useFavoriteToggle';
+import { sortOpenFirst } from '@/features/food/availability';
+import { FoodGrid } from '@/features/food/components/FoodCollections';
+import { FoodPreferenceChips } from '@/features/food/components/FoodPreference';
+import {
+  filterByPreference,
+  preferenceLabel,
+  useFoodPreferenceStore,
+} from '@/features/food/preference';
+import { useDishCartControls, useSyncCartAvailability } from '@/features/food/useDishCartControls';
 import { RestaurantCard } from '@/features/restaurants/components/RestaurantCard';
-import { useQuery } from '@/hooks/useQuery';
 import { useServices } from '@/services';
 
 const SUGGESTIONS = ['Biryani', 'Dosa', 'Pizza', 'Paneer', 'Burger', 'Chai'];
@@ -37,6 +46,22 @@ export default function SearchScreen() {
   const [text, setText] = useState('');
   const query = useDebounced(text.trim(), DEBOUNCE_MS);
   const results = useQuery(`search:${query}`, () => catalog.search(query));
+  const favorite = useFavoriteToggle();
+  const preference = useFoodPreferenceStore((s) => s.preference);
+  const { controlsFor, dialog } = useDishCartControls();
+
+  const foods =
+    results.status === 'success'
+      ? sortOpenFirst(
+          filterByPreference(results.data.foods, preference, (d) => d.food.foodType),
+          (d) => d.restaurant.isOpen,
+        )
+      : [];
+  useSyncCartAvailability(
+    results.status === 'success' ? results.data.foods.map((d) => d.restaurant) : undefined,
+  );
+  const hiddenByPreference =
+    results.status === 'success' ? results.data.foods.length - foods.length : 0;
 
   const hasQuery = query.length > 0;
   const empty =
@@ -47,14 +72,17 @@ export default function SearchScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.screen}>
       <View style={styles.header}>
-        <Text variant="h1" accessibilityRole="header">
-          Search
-        </Text>
-        <SearchBarInput
-          placeholder="Search dishes or restaurants"
-          value={text}
-          onChangeText={setText}
-        />
+        <View style={styles.gutter}>
+          <Text variant="h1" accessibilityRole="header">
+            Search
+          </Text>
+          <SearchBarInput
+            placeholder="Search dishes or restaurants"
+            value={text}
+            onChangeText={setText}
+          />
+        </View>
+        <FoodPreferenceChips />
       </View>
 
       <ScrollView
@@ -64,7 +92,7 @@ export default function SearchScreen() {
       >
         {!hasQuery ? (
           <View style={styles.section}>
-            <Text variant="label" color="textSecondary">
+            <Text variant="h3" accessibilityRole="header">
               Popular searches
             </Text>
             <View style={styles.suggestions}>
@@ -90,42 +118,17 @@ export default function SearchScreen() {
           />
         ) : (
           <>
-            {results.data.foods.length > 0 && (
+            {foods.length > 0 && (
               <View>
                 <SectionHeader title="Dishes" />
-                <View style={styles.list}>
-                  {results.data.foods.map(({ food, restaurantName }) => (
-                    <Pressable
-                      key={food.id}
-                      onPress={() =>
-                        router.push({ pathname: '/food/[id]', params: { id: food.id } })
-                      }
-                      accessibilityRole="button"
-                      accessibilityLabel={`${food.name} from ${restaurantName}`}
-                      style={({ pressed }) => [styles.dish, pressed && styles.pressed]}
-                    >
-                      <RemoteImage
-                        image={food.image}
-                        decorative
-                        style={styles.dishImage}
-                        radius="md"
-                      />
-                      <View style={styles.flex}>
-                        <View style={styles.dishTitle}>
-                          <FoodTypeMark type={food.foodType} />
-                          <Text variant="label" numberOfLines={1} style={styles.flex}>
-                            {food.name}
-                          </Text>
-                        </View>
-                        <Text variant="bodySmall" color="textSecondary" numberOfLines={1}>
-                          {restaurantName}
-                        </Text>
-                        <Price value={food.price} />
-                      </View>
-                    </Pressable>
-                  ))}
-                </View>
+                <FoodGrid entries={foods} controlsFor={controlsFor} />
               </View>
+            )}
+            {hiddenByPreference > 0 && (
+              <Text variant="bodySmall" color="textSecondary" style={styles.note}>
+                {hiddenByPreference} {hiddenByPreference === 1 ? 'dish is' : 'dishes are'} hidden by
+                your {preferenceLabel(preference)} preference.
+              </Text>
             )}
             {results.data.restaurants.length > 0 && (
               <View>
@@ -135,6 +138,8 @@ export default function SearchScreen() {
                     <RestaurantCard
                       key={restaurant.id}
                       restaurant={restaurant}
+                      isFavorite={favorite.isFavorite(restaurant.id)}
+                      onToggleFavorite={() => favorite.toggle(restaurant.id)}
                       onPress={() =>
                         router.push({
                           pathname: '/restaurants/[id]',
@@ -149,26 +154,28 @@ export default function SearchScreen() {
           </>
         )}
       </ScrollView>
+      <CartBar bottomInset={false} />
+      {favorite.dialog}
+      {dialog}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
+  screen: { flex: 1, backgroundColor: colors.background },
+  note: { paddingHorizontal: screenGutter },
   flex: { flex: 1 },
   header: {
-    paddingHorizontal: screenGutter,
     paddingTop: spacing.sm,
     paddingBottom: spacing.md,
     gap: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
-  content: { paddingVertical: spacing.lg, gap: spacing['2xl'] },
+  gutter: { paddingHorizontal: screenGutter, gap: spacing.md },
+  content: { paddingTop: spacing.xl, paddingBottom: CART_BAR_SPACE, gap: spacing['2xl'] },
   section: { paddingHorizontal: screenGutter, gap: spacing.md },
   suggestions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   loader: { marginTop: spacing['3xl'] },
   list: { paddingHorizontal: screenGutter, gap: spacing.md },
-  dish: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
-  pressed: { opacity: 0.7 },
-  dishImage: { width: 64, height: 64 },
-  dishTitle: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs + spacing.xxs },
 });

@@ -1,12 +1,22 @@
-import { Button, Screen, screenGutter, spacing, Text, TextField } from '@hungerly/ui';
+import { Button, Screen, ScreenHeader, screenGutter, spacing, Text, TextField } from '@hungerly/ui';
 import { isValidIndianMobile, toE164India } from '@hungerly/utils';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, ScrollView, StyleSheet, View } from 'react-native';
 
+import { isLoginReason, loginCopyFor } from '@/features/auth/loginReasons';
+import { brand } from '@/features/brand/brand';
+import { BrandLogo } from '@/features/brand/BrandLogo';
 import { useServices, userMessage } from '@/services';
 
+/**
+ * Log in or sign up with a mobile number. Opened from wherever a guest needs an account
+ * (checkout, favourites, account); after verification the auth screens are removed and
+ * the customer is back where they started.
+ */
 export default function LoginScreen() {
+  const params = useLocalSearchParams<{ reason?: string }>();
+  const copy = loginCopyFor(isLoginReason(params.reason) ? params.reason : undefined);
   const { auth } = useServices();
   const [phone, setPhone] = useState('');
   const [touched, setTouched] = useState(false);
@@ -43,18 +53,19 @@ export default function LoginScreen() {
 
   return (
     <Screen edges={['top', 'bottom']}>
+      {router.canGoBack() && (
+        <ScreenHeader onBack={() => router.back()} backLabel="Continue browsing" />
+      )}
       <KeyboardAvoidingView behavior="padding" style={styles.flex}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <Text variant="brand" color="primary">
-              hungerly
-            </Text>
+            <BrandLogo height={96} />
             <Text variant="h1" accessibilityRole="header">
-              Log in or sign up
+              {copy.title}
             </Text>
             <Text variant="body" color="textSecondary">
-              We’ll text you a 6-digit code to confirm it’s you. New here? The same code creates
-              your account.
+              {copy.message} We’ll text you a 6-digit code to confirm it’s you. New here? The same
+              code creates your account.
             </Text>
           </View>
 
@@ -91,7 +102,7 @@ export default function LoginScreen() {
             fullWidth
           />
           <Text variant="caption" color="textTertiary" align="center">
-            By continuing you agree to Hungerly’s Terms of Service and Privacy Policy.
+            By continuing you agree to {brand.name}’s Terms of Service and Privacy Policy.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

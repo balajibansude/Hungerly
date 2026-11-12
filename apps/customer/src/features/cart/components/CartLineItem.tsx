@@ -10,8 +10,11 @@ export function CartLineItem({
   item,
   onIncrement,
   onDecrement,
+  canIncrease = true,
 }: {
   item: CartItem;
+  /** False while the restaurant is closed: the + is disabled, removing still works. */
+  canIncrease?: boolean;
   onIncrement: () => void;
   onDecrement: () => void;
 }) {
@@ -37,7 +40,7 @@ export function CartLineItem({
           onIncrement={onIncrement}
           onDecrement={onDecrement}
           itemName={item.name}
-          max={MAX_LINE_QUANTITY}
+          max={canIncrease ? MAX_LINE_QUANTITY : item.quantity}
           size="sm"
         />
         <Price value={lineTotal(item)} />

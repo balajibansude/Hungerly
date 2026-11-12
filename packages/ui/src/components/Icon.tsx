@@ -11,18 +11,23 @@ export interface IconProps {
   name: IconName;
   size?: keyof typeof iconSize;
   color?: ColorToken;
+  /**
+   * Raw colour for values computed from a token mapping (e.g. food-type colours).
+   * Takes precedence over `color`; prefer `color` everywhere else.
+   */
+  tint?: string;
 }
 
 /**
  * One icon set (Ionicons) keeps the visual language consistent on iOS and Android.
  * Icons are decorative by default; interactive wrappers provide the accessible label.
  */
-export function Icon({ name, size = 'md', color = 'textPrimary' }: IconProps) {
+export function Icon({ name, size = 'md', color = 'textPrimary', tint }: IconProps) {
   return (
     <Ionicons
       name={name}
       size={iconSize[size]}
-      color={colors[color]}
+      color={tint ?? colors[color]}
       accessibilityElementsHidden
       importantForAccessibility="no"
     />

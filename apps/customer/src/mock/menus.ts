@@ -8,6 +8,8 @@ interface FoodSeed {
   name: string;
   description: string;
   pricePaise: number;
+  /** Price before a dish-level deal (sample data); must be above `pricePaise`. */
+  originalPricePaise?: number;
   foodType: FoodType;
   photo?: PhotoKey;
   bestseller?: boolean;
@@ -52,6 +54,7 @@ function menu(
         name: seed.name,
         description: seed.description,
         price: money(seed.pricePaise),
+        ...(seed.originalPricePaise ? { originalPrice: money(seed.originalPricePaise) } : {}),
         foodType: seed.foodType,
         image: seed.photo ? photo(seed.photo, seed.name, 600) : undefined,
         rating: seed.rating ? { average: seed.rating[0], count: seed.rating[1] } : undefined,
@@ -198,6 +201,15 @@ export const menus: Menu[] = [
           ],
         },
         {
+          id: 'f-dr-jain-dosa',
+          name: 'Jain Rava Dosa',
+          description:
+            'Crisp semolina dosa made the Jain way: no onion, garlic, potato or other root vegetables.',
+          pricePaise: 13900,
+          foodType: 'jain',
+          photo: 'dosaPlatter',
+        },
+        {
           id: 'f-dr-plain-dosa',
           name: 'Ghee Roast Dosa',
           description: 'Paper-thin dosa roasted in pure ghee until golden.',
@@ -215,6 +227,7 @@ export const menus: Menu[] = [
           name: 'Idli Vada Combo',
           description: 'Two steamed idlis and a crisp medu vada with sambar and coconut chutney.',
           pricePaise: 11900,
+          originalPricePaise: 14900,
           foodType: 'veg',
           photo: 'idliVada',
           rating: [4.5, 1320],
@@ -321,6 +334,7 @@ export const menus: Menu[] = [
           name: 'Rainbow Buddha Bowl',
           description: 'Avocado, roasted beets, chickpeas, greens and tahini.',
           pricePaise: 31900,
+          originalPricePaise: 37900,
           foodType: 'veg',
           photo: 'vegBowl',
         },
@@ -405,6 +419,7 @@ export const menus: Menu[] = [
           name: 'Twice-Cooked Fries',
           description: 'Skin-on fries with peri-peri salt.',
           pricePaise: 12900,
+          originalPricePaise: 15900,
           foodType: 'veg',
           photo: 'burgerAndFries',
         },
@@ -558,10 +573,21 @@ export const menus: Menu[] = [
           ],
         },
         {
+          id: 'f-cc-jain-pav-bhaji',
+          name: 'Jain Pav Bhaji',
+          description:
+            'Raw-banana and capsicum bhaji with butter pav, cooked without onion, garlic or root vegetables.',
+          pricePaise: 15900,
+          foodType: 'jain',
+          photo: 'pavBhaji',
+          rating: [4.5, 410],
+        },
+        {
           id: 'f-cc-samosa',
           name: 'Punjabi Samosa (2 pcs)',
           description: 'Flaky pastry with spiced potato and peas, with mint and tamarind chutneys.',
           pricePaise: 6900,
+          originalPricePaise: 8900,
           foodType: 'veg',
           photo: 'samosa',
           rating: [4.4, 1650],
@@ -611,6 +637,7 @@ export const menus: Menu[] = [
           name: 'Chocolate Fudge Shake',
           description: 'Thick chocolate shake with fudge sauce and cookie crumbs.',
           pricePaise: 21900,
+          originalPricePaise: 26900,
           foodType: 'veg',
           photo: 'chocolateShake',
         },

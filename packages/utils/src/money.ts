@@ -62,3 +62,18 @@ function groupIndian(value: number): string {
   const rest = digits.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ',');
   return `${rest},${lastThree}`;
 }
+
+const RUPEES_INPUT = /^\d+(\.\d{1,2})?$/;
+
+/**
+ * Parses what a person types as a rupee amount ("149", "149.5", "1,499.00") into money
+ * in paise. Returns `null` for anything that is not a non-negative amount with at most
+ * two decimals. Uses string arithmetic, never floats.
+ */
+export function parseRupees(input: string, currency: CurrencyCode = 'INR'): Money | null {
+  const cleaned = input.trim().replace(/[₹,\s]/g, '');
+  if (!RUPEES_INPUT.test(cleaned)) return null;
+  const [whole = '0', fraction = ''] = cleaned.split('.');
+  const amountMinor = Number(whole) * MINOR_UNITS_PER_MAJOR + Number(fraction.padEnd(2, '0'));
+  return Number.isSafeInteger(amountMinor) ? money(amountMinor, currency) : null;
+}

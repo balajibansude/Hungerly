@@ -14,15 +14,32 @@ import {
   Text,
 } from '@hungerly/ui';
 import { formatMoney } from '@hungerly/utils';
+import { useQuery } from '@hungerly/app-core';
+import type { PaymentMethod } from '@hungerly/types';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useSessionStore } from '@/features/auth/session';
+import { checkoutStepFor } from '@/features/cart/checkout';
 import { BillSummary } from '@/features/cart/components/BillSummary';
 import { CartLineItem } from '@/features/cart/components/CartLineItem';
 import { useCartStore } from '@/features/cart/store';
 import { useCartSummary } from '@/features/cart/useCartSummary';
+import {
+  DeliveryAddressCard,
+  type DeliveryAddressCardState,
+} from '@/features/checkout/components/DeliveryAddressCard';
+import { CheckoutSummary } from '@/features/checkout/components/CheckoutSummary';
+import { PaymentMethodCard } from '@/features/checkout/components/PaymentMethodCard';
+import { checkoutSummaryText } from '@/features/checkout/summary';
+import { useDeliveryAddress } from '@/features/checkout/useDeliveryAddress';
+import { opensAtLabel } from '@/features/food/availability';
+import { useSyncCartAvailability } from '@/features/food/useDishCartControls';
+import { placeOrderAndConfirm } from '@/features/orders/flow';
+import { usePlacedOrdersStore } from '@/features/orders/store';
+import { useServices, userMessage } from '@/services';
 
 export default function CartScreen() {
   const insets = useSafeAreaInsets();
@@ -30,8 +47,23 @@ export default function CartScreen() {
   const increment = useCartStore((s) => s.increment);
   const decrement = useCartStore((s) => s.decrement);
   const clear = useCartStore((s) => s.clear);
+  const recordOrder = usePlacedOrdersStore((s) => s.add);
   const [confirmClear, setConfirmClear] = useState(false);
-  const [checkoutInfo, setCheckoutInfo] = useState(false);
+  const [loginPrompt, setLoginPrompt] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cod');
+  const [notice, setNotice] = useState<string | null>(null);
+  // Guards against a double tap creating two orders; the ref is checked synchronously.
+  const placingRef = useRef(false);
+  const [placing, setPlacing] = useState(false);
+  const isSignedIn = useSessionStore((s) => s.session !== null);
+  const delivery = useDeliveryAddress();
+  const { restaurants, orders } = useServices();
+  // Re-check the restaurant when the cart opens: it may have closed (or reopened) since
+  // the items were added. The server checks again when the order is placed.
+  const fresh = useQuery(`cart-restaurant:${restaurant?.id ?? 'none'}`, () =>
+    restaurant ? restaurants.get(restaurant.id) : Promise.resolve(null),
+  );
+  useSyncCartAvailability(fresh.status === 'success' && fresh.data ? [fresh.data] : undefined);
 
   if (!restaurant || items.length === 0) {
     return (
@@ -48,7 +80,68 @@ export default function CartScreen() {
     );
   }
 
-  const blocked = bill.shortOfMinimum !== null;
+  const closed = !restaurant.isOpen;
+  const blocked = bill.shortOfMinimum !== null || closed;
+
+  const deliveryState: DeliveryAddressCardState = !isSignedIn
+    ? { kind: 'guest' }
+    : delivery.status === 'success'
+      ? delivery.choice
+      : { kind: delivery.status };
+
+  const changeAddress = () => router.push({ pathname: '/addresses', params: { select: '1' } });
+  // From checkout, a newly added address becomes the delivery address.
+  const addAddress = () => router.push({ pathname: '/address-form', params: { select: '1' } });
+  const editAddress = (id: string) => router.push({ pathname: '/address-form', params: { id } });
+
+  const chosenAddress =
+    deliveryState.kind === 'ready' || deliveryState.kind === 'incomplete'
+      ? deliveryState.address
+      : null;
+  const summary = checkoutSummaryText({
+    address: chosenAddress,
+    paymentMethod,
+    total: bill.total,
+  });
+
+  const placeOrder = () => {
+    setNotice(null);
+    const step = checkoutStepFor({
+      isSignedIn,
+      belowMinimum: bill.shortOfMinimum !== null,
+      restaurantClosed: closed,
+      hasDeliveryAddress: deliveryState.kind === 'ready',
+    });
+    if (step === 'login_required') setLoginPrompt(true);
+    else if (step === 'address_required') {
+      // Take the customer straight to what is missing.
+      if (deliveryState.kind === 'incomplete') editAddress(deliveryState.address.id);
+      else if (deliveryState.kind === 'none') addAddress();
+      else if (deliveryState.kind === 'error') delivery.refetch();
+    } else if (step === 'ready' && deliveryState.kind === 'ready' && !placingRef.current) {
+      placingRef.current = true;
+      setPlacing(true);
+      // Instructions are added after the order exists (Confirmation → Instructions).
+      placeOrderAndConfirm({
+        orders,
+        input: {
+          restaurantId: restaurant.id,
+          items,
+          deliveryAddressId: deliveryState.address.id,
+          paymentMethod,
+          total: bill.total,
+        },
+        recordOrder,
+        clearCart: clear,
+        replace: (route) => router.replace(route),
+      })
+        .catch((error: unknown) => setNotice(userMessage(error)))
+        .finally(() => {
+          placingRef.current = false;
+          setPlacing(false);
+        });
+    }
+  };
 
   return (
     <Screen>
@@ -77,6 +170,7 @@ export default function CartScreen() {
               {index > 0 && <Divider />}
               <CartLineItem
                 item={item}
+                canIncrease={!closed}
                 onIncrement={() => increment(item.lineId)}
                 onDecrement={() => decrement(item.lineId)}
               />
@@ -91,7 +185,7 @@ export default function CartScreen() {
             style={styles.addMore}
           >
             <Icon name="add-circle-outline" color="primary" />
-            <Text variant="label" color="primary">
+            <Text variant="label" color="primaryText">
               Add more items
             </Text>
           </Pressable>
@@ -103,25 +197,58 @@ export default function CartScreen() {
           </Hint>
         )}
 
+        <DeliveryAddressCard
+          state={deliveryState}
+          onChange={changeAddress}
+          onAdd={addAddress}
+          onEdit={editAddress}
+          onLogin={() => setLoginPrompt(true)}
+          onRetry={delivery.refetch}
+        />
+
         <BillSummary bill={bill} offerLabel={restaurant.offer?.label} />
 
-        <Hint icon="location-outline" tone="surfaceMuted">
-          Delivery address, payment and order placement arrive with checkout in the next phases.
-        </Hint>
+        <PaymentMethodCard value={paymentMethod} onChange={setPaymentMethod} />
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
-        {blocked && bill.shortOfMinimum && (
+        <CheckoutSummary summary={summary} onChangeAddress={changeAddress} />
+        {closed && (
+          <Text variant="bodySmall" color="warning" align="center">
+            {restaurant.name} is currently closed
+            {opensAtLabel(restaurant.opensAt) ? ` · ${opensAtLabel(restaurant.opensAt)}` : ''}. You
+            can remove items, but can’t add more or check out until it reopens.
+          </Text>
+        )}
+        {!closed && bill.shortOfMinimum && (
           <Text variant="bodySmall" color="warning" align="center">
             Add {formatMoney(bill.shortOfMinimum)} more to reach the{' '}
             {formatMoney(restaurant.minimumOrder)} minimum order.
           </Text>
         )}
+        {!blocked && isSignedIn && deliveryState.kind === 'none' && (
+          <Text variant="bodySmall" color="textSecondary" align="center">
+            Add a delivery address to place your order.
+          </Text>
+        )}
+        {notice && (
+          <Text
+            variant="bodySmall"
+            color="textSecondary"
+            align="center"
+            accessibilityLiveRegion="polite"
+          >
+            {notice}
+          </Text>
+        )}
         <Button
-          label={`Checkout · ${formatMoney(bill.total)}`}
-          onPress={() => setCheckoutInfo(true)}
+          label={summary.placeOrderLabel}
+          accessibilityLabel={summary.placeOrderAccessibilityLabel}
+          onPress={placeOrder}
           disabled={blocked}
+          loading={placing}
           fullWidth
+          testID="place-order"
         />
       </View>
 
@@ -138,13 +265,16 @@ export default function CartScreen() {
         }}
       />
       <ConfirmDialog
-        visible={checkoutInfo}
-        title="Checkout is coming soon"
-        message="This prototype stops at the cart. Payments and order placement will be connected when the backend is ready."
-        confirmLabel="Got it"
-        cancelLabel={null}
-        onCancel={() => setCheckoutInfo(false)}
-        onConfirm={() => setCheckoutInfo(false)}
+        visible={loginPrompt}
+        title="Log in to place your order"
+        message="You can browse and build a cart as a guest. To place an order we need to verify your mobile number — your cart stays exactly as it is."
+        confirmLabel="Log in or sign up"
+        cancelLabel="Not now"
+        onCancel={() => setLoginPrompt(false)}
+        onConfirm={() => {
+          setLoginPrompt(false);
+          router.push({ pathname: '/login', params: { reason: 'checkout' } });
+        }}
       />
     </Screen>
   );
@@ -161,10 +291,14 @@ function Hint({
 }) {
   return (
     <View style={[styles.hint, { backgroundColor: colors[tone] }]}>
-      <Icon name={icon} size="sm" color={tone === 'primarySoft' ? 'primary' : 'textSecondary'} />
+      <Icon
+        name={icon}
+        size="sm"
+        color={tone === 'primarySoft' ? 'primaryText' : 'textSecondary'}
+      />
       <Text
         variant="bodySmall"
-        color={tone === 'primarySoft' ? 'primary' : 'textSecondary'}
+        color={tone === 'primarySoft' ? 'primaryText' : 'textSecondary'}
         style={styles.flex}
       >
         {children}

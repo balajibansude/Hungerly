@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "Swaadone Partner",
+    "slug": "hungerly-restaurant",
+    "version": "0.1.0",
+    "scheme": "hungerly-partner",
+    "orientation": "default",
+    "icon": "../customer/assets/brand/swaadone-logo.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "../customer/assets/brand/swaadone-adaptive-foreground.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router",
+      "expo-image",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FFFFFF",
+          "image": "../customer/assets/brand/swaadone-logo.png",
+          "imageWidth": 200
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Swaadone Partner uses your location to pin your restaurant on the map so customers nearby can find you."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Swaadone Partner needs your photos to add pictures of your dishes.",
+          "cameraPermission": false
+        }
+      ],
+      "expo-document-picker"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

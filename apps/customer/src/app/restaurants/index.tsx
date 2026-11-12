@@ -1,3 +1,4 @@
+import { useQuery } from '@hungerly/app-core';
 import {
   Chip,
   EmptyState,
@@ -13,6 +14,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
 
 import { CART_BAR_SPACE, CartBar } from '@/features/cart/components/CartBar';
+import { useFavoriteToggle } from '@/features/favorites/useFavoriteToggle';
 import { RestaurantCard } from '@/features/restaurants/components/RestaurantCard';
 import { RestaurantCardSkeleton } from '@/features/restaurants/components/RestaurantCardSkeleton';
 import {
@@ -21,7 +23,6 @@ import {
   quickFilters,
   type QuickFilterKey,
 } from '@/features/restaurants/quickFilters';
-import { useQuery } from '@/hooks/useQuery';
 import { useServices, type RestaurantSort } from '@/services';
 
 const sorts: { key: RestaurantSort; label: string }[] = [
@@ -48,6 +49,7 @@ export default function RestaurantListScreen() {
     [active, cuisine, sort],
   );
   const result = useQuery(`restaurants:${JSON.stringify(query)}`, () => restaurants.list(query));
+  const favorite = useFavoriteToggle();
 
   const toggle = (key: QuickFilterKey) =>
     setActive((current) =>
@@ -79,6 +81,7 @@ export default function RestaurantListScreen() {
               key={filter.key}
               label={filter.label}
               icon={filter.icon}
+              tint={filter.tint}
               selected={active.includes(filter.key)}
               onPress={() => toggle(filter.key)}
             />
@@ -120,6 +123,8 @@ export default function RestaurantListScreen() {
           renderItem={({ item }) => (
             <RestaurantCard
               restaurant={item}
+              isFavorite={favorite.isFavorite(item.id)}
+              onToggleFavorite={() => favorite.toggle(item.id)}
               onPress={() =>
                 router.push({ pathname: '/restaurants/[id]', params: { id: item.id } })
               }
@@ -137,6 +142,7 @@ export default function RestaurantListScreen() {
         />
       )}
       <CartBar />
+      {favorite.dialog}
     </Screen>
   );
 }

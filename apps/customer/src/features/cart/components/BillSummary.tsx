@@ -17,6 +17,9 @@ export function BillSummary({ bill, offerLabel }: { bill: Bill; offerLabel?: str
       </Text>
       <Row label="Item total" value={bill.subtotal} />
       <Row label="Delivery fee" value={bill.deliveryFee} />
+      {bill.nightCharge.amountMinor > 0 ? (
+        <Row label="Night-time charge" value={bill.nightCharge} />
+      ) : null}
       {bill.discount.amountMinor > 0 ? (
         <Row
           label={offerLabel ? `Offer · ${offerLabel}` : 'Discount'}

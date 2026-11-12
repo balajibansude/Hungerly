@@ -1,6 +1,7 @@
 pnpm-lock.yaml
 node_modules/
 .expo/
+expo-env.d.ts
 .turbo/
 dist/
 # Markdown (architecture docs, READMEs) is formatted by hand.

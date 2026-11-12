@@ -167,6 +167,7 @@ export const restaurants: Restaurant[] = [
     priceLevel: 2,
     costForTwo: money(50000),
     isOpen: false,
+    opensAt: '11:00',
     isPureVeg: false,
     locality: 'Kalyani Nagar',
     deliveryFee: money(3000),

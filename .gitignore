@@ -135,3 +135,14 @@ Desktop.ini
 !.vscode/extensions.json
 !.vscode/settings.json
 .history/
+
+# --- Local reference images (third-party branding / customer data; never commit) ---
+/Restaurant App reference images/
+/design-references/
+/card1.jpeg
+/card2.jpeg
+/Foodu_ Food Delivery App UI for Figma - Freebiesbug.jpeg
+/Swaadone Food Delivery Logo.png
+
+# Expo local development files
+.expo/

@@ -1,20 +1,19 @@
 {
   "expo": {
-    "name": "Hungerly",
+    "name": "Swaadone",
     "slug": "hungerly-customer",
     "version": "0.1.0",
     "scheme": "hungerly",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/brand/swaadone-logo.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#C2410C",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/brand/swaadone-adaptive-foreground.png"
       },
       "predictiveBackGestureEnabled": false
     },
@@ -25,9 +24,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#C2410C",
-          "image": "./assets/splash-icon.png",
-          "imageWidth": 160
+          "backgroundColor": "#FFFFFF",
+          "image": "./assets/brand/swaadone-logo.png",
+          "imageWidth": 200
         }
       ]
     ],

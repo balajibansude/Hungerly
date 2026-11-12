@@ -1,7 +1,7 @@
 import { ActivityIndicator, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { colors, type ColorToken } from '../theme/colors';
-import { minTouchTarget, radius, spacing } from '../theme/layout';
+import { elevation, minTouchTarget, radius, spacing } from '../theme/layout';
 import { Icon, type IconName } from './Icon';
 import { PressableScale } from './PressableScale';
 import { Text } from './Text';
@@ -33,7 +33,7 @@ const variantStyles: Record<
   primary: { background: 'primary', text: 'onPrimary' },
   secondary: { background: 'secondary', text: 'onSecondary' },
   outline: { background: 'transparent', text: 'textPrimary', border: 'borderStrong' },
-  ghost: { background: 'transparent', text: 'primary' },
+  ghost: { background: 'transparent', text: 'primaryText' },
   danger: { background: 'errorSoft', text: 'error' },
 };
 
@@ -74,6 +74,7 @@ export function Button({
         styles.base,
         size === 'lg' ? styles.large : styles.medium,
         { backgroundColor },
+        variant === 'primary' && !inactive && elevation.brand,
         tokens.border && !inactive && { borderWidth: 1, borderColor: colors[tokens.border] },
         fullWidth && styles.fullWidth,
         style,
@@ -100,7 +101,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
   },
-  large: { minHeight: 52 },
+  large: { minHeight: 56 },
   medium: { minHeight: minTouchTarget - 4, paddingHorizontal: spacing.lg },
   fullWidth: { alignSelf: 'stretch' },
   content: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },

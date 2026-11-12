@@ -1132,6 +1132,7 @@ These require product/business input or later evidence. Each needs an owner and 
 | OD-22 | Search engine migration trigger | Postgres FTS → Meilisearch/OpenSearch | Stay on Postgres until metrics say otherwise | Post-MVP |
 | OD-23 | Deep-link scheme / app-links domain, app names and bundle ids | — | Decide with branding (prototype uses scheme `hungerly`) | Phase 1 |
 | OD-24 | Backend platform: FastAPI modular monolith (ADR-002/003/004) vs Supabase (managed Postgres + Auth + storage) | FastAPI as designed / Supabase / hybrid (Supabase Postgres + FastAPI) | Undecided — Supabase was mentioned as the planned platform after this blueprint was written. The frontend is backend-agnostic via service interfaces; decide before Phase 2 and update ADR-002/004 accordingly | Phase 2 |
+| OD-25 | Registrant's role when registering a restaurant | Always owner (API_BLUEPRINT §3.5, one active owner per restaurant) / owner or manager as chosen in the form (restaurant-app prototype) | Undecided — the prototype stores the chosen role; if a manager registers, who becomes owner must be defined (e.g. invite the owner before approval) | Phase 3 (backend) |
 
 ---
 

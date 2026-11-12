@@ -1,4 +1,13 @@
-import { Badge, Button, Screen, ScreenHeader, screenGutter, spacing, Text } from '@hungerly/ui';
+import {
+  Badge,
+  Button,
+  OtpInput,
+  Screen,
+  ScreenHeader,
+  screenGutter,
+  spacing,
+  Text,
+} from '@hungerly/ui';
 import { formatE164India } from '@hungerly/utils';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -8,11 +17,10 @@ import {
   ScrollView,
   StyleSheet,
   View,
-  type TextInput,
+  type TextInputInstance,
 } from 'react-native';
 
-import { OtpInput } from '@/features/auth/components/OtpInput';
-import { useSessionStore } from '@/features/auth/session';
+import { needsProfileSetup, useSessionStore } from '@/features/auth/session';
 import { PROTOTYPE_OTP, useServices, userMessage } from '@/services';
 
 const CODE_LENGTH = 6;
@@ -21,7 +29,8 @@ export default function VerifyScreen() {
   const params = useLocalSearchParams<{ phone: string; requestId: string; resendAfter?: string }>();
   const { auth } = useServices();
   const signIn = useSessionStore((s) => s.signIn);
-  const inputRef = useRef<TextInput>(null);
+  const beginProfileSetup = useSessionStore((s) => s.beginProfileSetup);
+  const inputRef = useRef<TextInputInstance>(null);
 
   const [requestId, setRequestId] = useState(params.requestId);
   const [code, setCode] = useState('');
@@ -41,8 +50,14 @@ export default function VerifyScreen() {
     setError(null);
     try {
       const session = await auth.verifyOtp(requestId, value);
-      signIn(session);
-      router.replace('/');
+      if (needsProfileSetup(session)) {
+        beginProfileSetup(session);
+        router.replace('/profile-setup');
+      } else {
+        // Flips the auth guard: the auth screens leave the stack and the customer is back
+        // on the screen they came from (e.g. the cart), with their cart untouched.
+        signIn(session);
+      }
     } catch (e) {
       setError(userMessage(e));
       setCode('');
